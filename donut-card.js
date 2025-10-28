@@ -1,14 +1,14 @@
 /*!
- * Donut Metric Card — v3.0
+ * Donut Metric Card — v3.1 (Final5 scaling)
  * Universele ringkaart met twee entiteiten
  * - entity_primary bepaalt vulling + kleur (via gradient)
  * - entity_secondary wordt als extra waarde getoond
- * - Volledig schaalbaar, theme-aware, en zonder extra iconen
+ * - Schaalbaar, theme-aware, en identieke layout als Battery Donut Card Final5
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "5.0";
+  const VERSION = "3.1";
 
   class DonutMetricCard extends HTMLElement {
     constructor() {
@@ -89,7 +89,6 @@
       const h = this._hass;
       const ent1 = h.states[c.entity_primary];
       const ent2 = c.entity_secondary ? h.states[c.entity_secondary] : null;
-
       if (!ent1) return;
 
       const val1 = parseFloat(ent1.state) || 0;
@@ -120,7 +119,7 @@
       };
 
       let svg = `
-        <svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
           <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
                   stroke="#000" stroke-width="${W}" opacity="0.3"/>
       `;
@@ -147,7 +146,6 @@
               ${val1.toFixed(0)} ${c.unit_primary || ""}
         </text>
       `;
-
       if (ent2)
         svg += `
           <text x="${cx}" y="${y2}" text-anchor="middle"
@@ -168,6 +166,11 @@
 
       const style = `
         <style>
+          :host {
+            display: block;
+            width: 100%;
+            height: 100%;
+          }
           ha-card {
             background: ${c.background};
             border-radius: ${c.border_radius};
@@ -177,19 +180,38 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            width: 100%;
+            height: 100%;
           }
-          svg { width: 100%; height: auto; }
+          .wrap {
+            width: 100%;
+            height: 100%;
+            max-width: 520px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+          }
+          svg {
+            width: 100%;
+            height: auto;
+            display: block;
+          }
+          text {
+            user-select: none;
+          }
         </style>
       `;
 
       this.shadowRoot.innerHTML = `
         ${style}
-        <ha-card>${svg}</ha-card>
+        <ha-card>
+          <div class="wrap">${svg}</div>
+        </ha-card>
       `;
     }
   }
 
-  // 📦 definitie van het element forceren binnen de IIFE
   try {
     if (!customElements.get("donut-card")) {
       customElements.define("donut-card", DonutMetricCard);
