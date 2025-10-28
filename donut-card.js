@@ -8,7 +8,7 @@
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "3.1";
+  const VERSION = "6.0";
 
   class DonutMetricCard extends HTMLElement {
     constructor() {
