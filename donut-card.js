@@ -188,5 +188,12 @@
     }
   }
 
-  if (!customElements.get(TAG)) customElements.define(TAG, DonutMetricCard);
-})();
+ // definitie van het element forceren
+try {
+  if (!customElements.get("donut-card")) {
+    customElements.define("donut-card", DonutMetricCard);
+    console.info("%c donut-card %c 0.1 ", "background:#00bcd4;color:#000;padding:2px 6px;border-radius:3px 0 0 3px;font-weight:700", "background:#333;color:#fff;padding:2px 6px;border-radius:0 3px 3px 0");
+  }
+} catch (err) {
+  console.error("Fout bij registratie donut-card:", err);
+}
