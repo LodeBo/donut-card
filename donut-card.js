@@ -1,5 +1,5 @@
 /*!
- * Donut Metric Card — v0.1
+ * Donut Metric Card — v3.0
  * Universele ringkaart met twee entiteiten
  * - entity_primary bepaalt vulling + kleur (via gradient)
  * - entity_secondary wordt als extra waarde getoond
@@ -8,7 +8,7 @@
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "3.0";
+  const VERSION = "5.0";
 
   class DonutMetricCard extends HTMLElement {
     constructor() {
@@ -147,6 +147,7 @@
               ${val1.toFixed(0)} ${c.unit_primary || ""}
         </text>
       `;
+
       if (ent2)
         svg += `
           <text x="${cx}" y="${y2}" text-anchor="middle"
@@ -188,12 +189,17 @@
     }
   }
 
- // definitie van het element forceren
-try {
-  if (!customElements.get("donut-card")) {
-    customElements.define("donut-card", DonutMetricCard);
-    console.info("%c donut-card %c 0.1 ", "background:#00bcd4;color:#000;padding:2px 6px;border-radius:3px 0 0 3px;font-weight:700", "background:#333;color:#fff;padding:2px 6px;border-radius:0 3px 3px 0");
+  // 📦 definitie van het element forceren binnen de IIFE
+  try {
+    if (!customElements.get("donut-card")) {
+      customElements.define("donut-card", DonutMetricCard);
+      console.info(
+        `%c ${TAG} %c v${VERSION} `,
+        "background:#00bcd4;color:#000;padding:2px 6px;border-radius:3px 0 0 3px;font-weight:700",
+        "background:#333;color:#fff;padding:2px 6px;border-radius:0 3px 3px 0"
+      );
+    }
+  } catch (err) {
+    console.error("❌ Fout bij registratie donut-card:", err);
   }
-} catch (err) {
-  console.error("Fout bij registratie donut-card:", err);
-}
+})();
