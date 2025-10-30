@@ -1,16 +1,16 @@
 /*!
- * Donut Metric Card — v3.1 (Final5 scaling)
- * Universele ringkaart met twee entiteiten
- * - entity_primary bepaalt vulling + kleur (via gradient)
- * - entity_secondary wordt als extra waarde getoond
- * - Schaalbaar, theme-aware, en identieke layout als Battery Donut Card Final5
+ * Donut Card — v3.5 (Final-style dual-entity)
+ * Gebaseerd op Battery Donut Card — Final5
+ * - Twee entiteiten: entiteit 1 bepaalt de ringkleur (gradient)
+ * - entiteit 2 wordt getoond als extra waarde onder entiteit 1
+ * - Alles schaalbaar, met instelbare labelafstand en volledige kleurcontrole
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "6.0";
+  const VERSION = "7.0";
 
-  class DonutMetricCard extends HTMLElement {
+  class DonutCard extends HTMLElement {
     constructor() {
       super();
       this.attachShadow({ mode: "open" });
@@ -24,30 +24,42 @@
         entity_secondary: "sensor.example_energy",
         min_value: 0,
         max_value: 100,
-        unit_primary: "W",
-        unit_secondary: "kWh",
-        label_text: "Solar",
-        font_scale_primary: 0.35,
-        font_scale_secondary: 0.25,
-        ring_radius: 80,
-        ring_width: 8,
-        color_stops: [
-          [0, "#ff0000"],
-          [0.25, "#fb923c"],
-          [0.5, "#facc15"],
-          [0.75, "#34d399"],
-          [1.0, "#00bcd4"],
-        ],
+
+        // 🎨 Kleurinstellingen
         background: "var(--card-background-color)",
         border_radius: "12px",
         border: "1px solid rgba(255,255,255,0.2)",
         box_shadow: "none",
         padding: "0px",
+        track_color: "#000000",
+        color_red: "#ff0000",
+        color_orange: "#fb923c",
+        color_yellow: "#facc15",
+        color_green: "#34d399",
+        color_cyan: "#00bcd4",
+        stop_red_hold: 0.11,
+        stop_orange: 0.25,
+        stop_yellow: 0.45,
+        stop_green: 0.7,
+
+        // 🏷️ Labels & tekst
+        top_label_text: "Donut",
+        top_label_weight: 400,
+        top_label_color: "#ffffff",
+        text_color_inside: "#ffffff",
+        font_scale_ent1: 0.30,
+        font_scale_ent2: 0.30,
+
+        // 🟢 Ring Layout
+        ring_radius: 65,
+        ring_width: 8,
+        ring_offset_y: 0,
+        label_ring_gap: 17,
       };
     }
 
     setConfig(config) {
-      this._config = { ...DonutMetricCard.getStubConfig(), ...config };
+      this._config = { ...DonutCard.getStubConfig(), ...config };
     }
 
     set hass(hass) {
@@ -101,11 +113,19 @@
       const R = Number(c.ring_radius);
       const W = Number(c.ring_width);
       const cx = 130;
-      const cy = 130;
+      const cy = 130 + Number(c.ring_offset_y || 0);
       const rot = -90;
       const segs = 140;
       const span = frac * 360;
-      const stops = c.color_stops;
+
+      const stops = [
+        [0.0, c.color_red],
+        [c.stop_red_hold, c.color_red],
+        [c.stop_orange, c.color_orange],
+        [c.stop_yellow, c.color_yellow],
+        [c.stop_green, c.color_green],
+        [1.0, c.color_cyan],
+      ];
 
       const arcSeg = (a0, a1, sw, color) => {
         const toRad = (d) => (d * Math.PI) / 180;
@@ -119,9 +139,9 @@
       };
 
       let svg = `
-        <svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+        <svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
           <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
-                  stroke="#000" stroke-width="${W}" opacity="0.3"/>
+                  stroke="${c.track_color}" stroke-width="${W}" stroke-linecap="round"/>
       `;
 
       const start = rot, end = rot + span;
@@ -134,31 +154,38 @@
         svg += arcSeg(a0, a1, W, this._colorAtStops(stops, t));
       }
 
-      const fs1 = R * (c.font_scale_primary ?? 0.35);
-      const fs2 = R * (c.font_scale_secondary ?? 0.25);
+      // 🔹 Top label
+      if ((c.top_label_text ?? "").trim() !== "") {
+        const fs_top = R * 0.35;
+        const y_top = (cy - R) - (W * 0.8) - fs_top * 0.25 - Number(c.label_ring_gap || 0);
+        svg += `
+          <text x="${cx}" y="${y_top}" font-size="${fs_top}"
+                font-weight="${c.top_label_weight || 400}"
+                fill="${c.top_label_color}" text-anchor="middle"
+                dominant-baseline="middle">${c.top_label_text}</text>
+        `;
+      }
+
+      // 🔹 Binnenste tekst
+      const textColor = c.text_color_inside || "#fff";
+      const fs1 = R * (c.font_scale_ent1 ?? 0.3);
+      const fs2 = R * (c.font_scale_ent2 ?? 0.3);
       const y1 = cy - R * 0.05;
       const y2 = cy + R * 0.35;
-      const textColor = "#fff";
 
       svg += `
         <text x="${cx}" y="${y1}" text-anchor="middle"
-              font-size="${fs1}" font-weight="400" fill="${textColor}">
-              ${val1.toFixed(0)} ${c.unit_primary || ""}
+              font-size="${fs1}" font-weight="400"
+              fill="${textColor}">
+              ${val1.toFixed(0)} ${ent1.attributes.unit_of_measurement || ""}
         </text>
       `;
       if (ent2)
         svg += `
           <text x="${cx}" y="${y2}" text-anchor="middle"
-                font-size="${fs2}" font-weight="300" fill="${textColor}">
-                ${val2.toFixed(2)} ${c.unit_secondary || ""}
-          </text>
-        `;
-
-      if (c.label_text)
-        svg += `
-          <text x="${cx}" y="${cy - R - 15}" text-anchor="middle"
-                font-size="${R * 0.3}" font-weight="300" fill="#fff">
-                ${c.label_text}
+                font-size="${fs2}" font-weight="300"
+                fill="${textColor}">
+                ${val2.toFixed(2)} ${ent2.attributes.unit_of_measurement || ""}
           </text>
         `;
 
@@ -166,40 +193,21 @@
 
       const style = `
         <style>
-          :host {
-            display: block;
-            width: 100%;
-            height: 100%;
-          }
+          :host { display:block; width:100%; height:100%; }
           ha-card {
-            background: ${c.background};
-            border-radius: ${c.border_radius};
-            border: ${c.border};
-            box-shadow: ${c.box_shadow};
-            padding: ${c.padding};
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            height: 100%;
+            background:${c.background};
+            border-radius:${c.border_radius};
+            border:${c.border};
+            box-shadow:${c.box_shadow};
+            padding:${c.padding};
+            display:flex; align-items:center; justify-content:center;
+            width:100%; height:100%;
           }
-          .wrap {
-            width: 100%;
-            height: 100%;
-            max-width: 520px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
+          .wrap { width:100%; height:100%; max-width:520px;
+            display:flex; align-items:center; justify-content:center; position:relative;
           }
-          svg {
-            width: 100%;
-            height: auto;
-            display: block;
-          }
-          text {
-            user-select: none;
-          }
+          svg { width:100%; height:auto; display:block; }
+          text { user-select:none; }
         </style>
       `;
 
@@ -214,9 +222,9 @@
 
   try {
     if (!customElements.get("donut-card")) {
-      customElements.define("donut-card", DonutMetricCard);
+      customElements.define("donut-card", DonutCard);
       console.info(
-        `%c ${TAG} %c v${VERSION} `,
+        `%c ${TAG} %c v${VERSION}`,
         "background:#00bcd4;color:#000;padding:2px 6px;border-radius:3px 0 0 3px;font-weight:700",
         "background:#333;color:#fff;padding:2px 6px;border-radius:0 3px 3px 0"
       );
