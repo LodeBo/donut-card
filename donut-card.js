@@ -1,14 +1,14 @@
 /*!
- * 🟢 Donut Card v4.0
- * - Clean build: 2 entities, top label, 5 color stops
- * - Smooth gradient (140 segments)
- * - Theme-aware, responsive
- * - Full UI editor (with proper text fields)
+ * 🟢 Donut Card v4.1
+ * - Twee entiteiten (primary + secondary)
+ * - Smooth gradient (140 segmenten)
+ * - 5 kleurstops, volledig instelbaar in UI
+ * - Theme-aware, responsive, stabiele entiteit-pickers
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "9.0";
+  const VERSION = "10.0";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -18,9 +18,7 @@
       this._config = null;
     }
 
-    static getConfigElement() {
-      return document.createElement("donut-card-editor");
-    }
+    static getConfigElement() { return document.createElement("donut-card-editor"); }
 
     static getStubConfig() {
       return {
@@ -54,7 +52,6 @@
         padding: "0px",
         track_color: "#000000",
 
-        // kleurstops (0..1)
         stop_1: 0.10, color_1: "#ff0000",
         stop_2: 0.30, color_2: "#fb923c",
         stop_3: 0.50, color_3: "#facc15",
@@ -63,14 +60,8 @@
       };
     }
 
-    setConfig(config) {
-      this._config = { ...DonutCard.getStubConfig(), ...config };
-    }
-
-    set hass(hass) {
-      this._hass = hass;
-      this.render();
-    }
+    setConfig(config) { this._config = { ...DonutCard.getStubConfig(), ...config }; }
+    set hass(hass) { this._hass = hass; this.render(); }
 
     _clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
     _lerp(a, b, t) { return a + (b - a) * t; }
@@ -155,19 +146,16 @@
         svg += arcSeg(a0, a1, W, this._colorAtStops(stops, t));
       }
 
-      // Top label
       if ((c.top_label_text ?? "").trim() !== "") {
         const fs_top = R * 0.35;
         const y_top = (cy - R) - (W * 0.8) - fs_top * 0.25 - Number(c.label_ring_gap || 0);
         svg += `
           <text x="${cx}" y="${y_top}" font-size="${fs_top}"
                 font-weight="${c.top_label_weight}" fill="${c.top_label_color}"
-                text-anchor="middle" dominant-baseline="middle">
-                ${c.top_label_text}</text>
+                text-anchor="middle" dominant-baseline="middle">${c.top_label_text}</text>
         `;
       }
 
-      // Binnenste tekst
       const textColor = c.text_color_inside || "#ffffff";
       const fs1 = R * (c.font_scale_ent1 ?? 0.30);
       const fs2 = R * (c.font_scale_ent2 ?? 0.30);
@@ -210,31 +198,28 @@
         </style>
       `;
 
-      this.shadowRoot.innerHTML = `
-        ${style}
-        <ha-card><div class="wrap">${svg}</div></ha-card>
-      `;
+      this.shadowRoot.innerHTML = `${style}<ha-card><div class="wrap">${svg}</div></ha-card>`;
     }
   }
 
-  /* ---------- UI EDITOR ---------- */
+  /* ---------- UI EDITOR (with ha-entity-picker) ---------- */
   class DonutCardEditor extends HTMLElement {
-    setConfig(config) { this._config = config || {}; this._render(); }
+    setConfig(config){this._config=config||{};this._render();}
 
-    _render() {
-      if (!this.isConnected) return;
-      const c = { ...DonutCard.getStubConfig(), ...this._config };
-      this.innerHTML = `
+    _render(){
+      if(!this.isConnected)return;
+      const c={...DonutCard.getStubConfig(),...this._config};
+      this.innerHTML=`
         <style>
-          ha-textfield, ha-slider { width:100%; }
+          ha-textfield, ha-slider, ha-entity-picker { width:100%; }
           .segrow { display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center; }
           .color input[type=color]{width:42px;height:28px;border:none;padding:0;}
           .lbl { font-size:12px; opacity:.8; }
         </style>
 
         <div class="editor">
-          <ha-textfield label="Entity primary" value="${c.entity_primary}" data-k="entity_primary"></ha-textfield>
-          <ha-textfield label="Entity secondary" value="${c.entity_secondary}" data-k="entity_secondary"></ha-textfield>
+          <ha-entity-picker label="Entity primary" .value=${c.entity_primary} data-k="entity_primary" allow-custom-entity></ha-entity-picker>
+          <ha-entity-picker label="Entity secondary" .value=${c.entity_secondary} data-k="entity_secondary" allow-custom-entity></ha-entity-picker>
           <ha-textfield label="Min" value="${c.min_value}" type="number" data-k="min_value"></ha-textfield>
           <ha-textfield label="Max" value="${c.max_value}" type="number" data-k="max_value"></ha-textfield>
           <ha-textfield label="Unit primary" value="${c.unit_primary}" data-k="unit_primary" type="text"></ha-textfield>
@@ -246,39 +231,38 @@
           <ha-textfield label="Top label weight" value="${c.top_label_weight}" type="number" data-k="top_label_weight"></ha-textfield>
 
           <div class="lbl">Kleurstops (0.0–1.0)</div>
-          ${[1,2,3,4,5].map(i => `
+          ${[1,2,3,4,5].map(i=>`
             <div class="segrow">
-              <ha-slider min="0" max="1" step="0.01" value="${c[`stop_${i}`]}" data-k="stop_${i}"></ha-slider>
+              <ha-slider min="0" max="1" step="0.01" value="${c[\`stop_${i}\`]}" data-k="stop_${i}"></ha-slider>
               <div class="color">
-                <input type="color" value="${c[`color_${i}`]}" data-k="color_${i}">
-                <span class="lbl">stop_${i}: ${c[`stop_${i}`]}</span>
+                <input type="color" value="${c[\`color_${i}\`]}" data-k="color_${i}">
+                <span class="lbl">stop_${i}: ${c[\`stop_${i}\`]}</span>
               </div>
             </div>`).join("")}
         </div>
       `;
-      this.querySelectorAll("[data-k]").forEach(el => {
-        el.addEventListener("input", e => this._onChange(e));
-        el.addEventListener("change", e => this._onChange(e));
+      this.querySelectorAll("[data-k]").forEach(el=>{
+        el.addEventListener("input",e=>this._onChange(e));
+        el.addEventListener("change",e=>this._onChange(e));
       });
     }
 
-    _onChange(ev) {
-      const el = ev.currentTarget;
-      const key = el.getAttribute("data-k");
-      let val = el.value;
-      if (el.type === "number" || el.tagName === "HA-SLIDER") { val = Number(val); }
-      this._config = { ...this._config, [key]: val };
-      this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config } }));
-      if (key.startsWith("stop_")) {
-        const span = el.parentElement?.querySelector(".lbl");
-        if (span) span.textContent = `${key}: ${this._config[key]}`;
+    _onChange(ev){
+      const el=ev.currentTarget;
+      const key=el.getAttribute("data-k");
+      let val=el.value ?? el._value ?? "";
+      if(el.type==="number"||el.tagName==="HA-SLIDER"){val=Number(val);}
+      this._config={...this._config,[key]:val};
+      this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config}}));
+      if(key.startsWith("stop_")){
+        const span=el.parentElement?.querySelector(".lbl");
+        if(span) span.textContent=\`\${key}: \${this._config[key]}\`;
       }
     }
 
-    connectedCallback() { this._render(); }
+    connectedCallback(){this._render();}
   }
 
-  /* ---------- Registratie ---------- */
   try {
     if (!customElements.get("donut-card")) customElements.define("donut-card", DonutCard);
     if (!customElements.get("donut-card-editor")) customElements.define("donut-card-editor", DonutCardEditor);
