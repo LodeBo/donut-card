@@ -1,15 +1,14 @@
 /*!
  * 🟢 Donut Card v4.0
- * - Clean version (no legacy)
- * - 2 entities (primary + secondary)
- * - 5 configurable color stops via UI-editor
- * - Smooth linear gradient (140 segments)
- * - Theme aware, responsive, no dependencies
+ * - Clean build: 2 entities, top label, 5 color stops
+ * - Smooth gradient (140 segments)
+ * - Theme-aware, responsive
+ * - Full UI editor (with proper text fields)
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "8.0";
+  const VERSION = "4.0";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -55,7 +54,7 @@
         padding: "0px",
         track_color: "#000000",
 
-        // 5 kleurstops (0..1)
+        // kleurstops (0..1)
         stop_1: 0.10, color_1: "#ff0000",
         stop_2: 0.30, color_2: "#fb923c",
         stop_3: 0.50, color_3: "#facc15",
@@ -80,14 +79,13 @@
       return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : { r: 255, g: 255, b: 255 };
     }
     _rgb2hex(r, g, b) {
-      const toHex = (x) => this._clamp(Math.round(x), 0, 255).toString(16).padStart(2, "0");
-      return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+      const p = v => this._clamp(Math.round(v), 0, 255).toString(16).padStart(2, "0");
+      return `#${p(r)}${p(g)}${p(b)}`;
     }
     _lerpColor(a, b, t) {
       const A = this._hex2rgb(a), B = this._hex2rgb(b);
       return this._rgb2hex(this._lerp(A.r, B.r, t), this._lerp(A.g, B.g, t), this._lerp(A.b, B.b, t));
     }
-
     _colorAtStops(stops, t) {
       t = this._clamp(t, 0, 1);
       for (let i = 0; i < stops.length - 1; i++) {
@@ -100,18 +98,15 @@
       }
       return stops[stops.length - 1][1];
     }
-
     _buildStops(c) {
-      const arr = [1, 2, 3, 4, 5].map(i => [
+      return [1, 2, 3, 4, 5].map(i => [
         this._clamp(Number(c[`stop_${i}`]), 0, 1),
         c[`color_${i}`] || "#ffffff",
-      ]);
-      return arr.sort((a, b) => a[0] - b[0]);
+      ]).sort((a, b) => a[0] - b[0]);
     }
 
     render() {
       if (!this._config || !this._hass) return;
-
       const c = this._config;
       const h = this._hass;
       const ent1 = h.states?.[c.entity_primary];
@@ -131,11 +126,10 @@
       const rot = -90;
       const segs = 140;
       const span = frac * 360;
-
       const stops = this._buildStops(c);
 
       const arcSeg = (a0, a1, sw, color) => {
-        const toRad = (d) => (d * Math.PI) / 180;
+        const toRad = d => (d * Math.PI) / 180;
         const x0 = cx + R * Math.cos(toRad(a0));
         const y0 = cy + R * Math.sin(toRad(a0));
         const x1 = cx + R * Math.cos(toRad(a1));
@@ -193,7 +187,6 @@
             ${val2.toFixed(c.decimals_secondary)} ${c.unit_secondary}
           </text>
         `;
-
       svg += `</svg>`;
 
       const style = `
@@ -224,7 +217,7 @@
     }
   }
 
-  // ---------- UI EDITOR ----------
+  /* ---------- UI EDITOR ---------- */
   class DonutCardEditor extends HTMLElement {
     setConfig(config) { this._config = config || {}; this._render(); }
 
@@ -244,15 +237,12 @@
           <ha-textfield label="Entity secondary" value="${c.entity_secondary}" data-k="entity_secondary"></ha-textfield>
           <ha-textfield label="Min" value="${c.min_value}" type="number" data-k="min_value"></ha-textfield>
           <ha-textfield label="Max" value="${c.max_value}" type="number" data-k="max_value"></ha-textfield>
-
-          <ha-textfield label="Unit primary" value="${c.unit_primary}" data-k="unit_primary"></ha-textfield>
-          <ha-textfield label="Unit secondary" value="${c.unit_secondary}" data-k="unit_secondary"></ha-textfield>
-
+          <ha-textfield label="Unit primary" value="${c.unit_primary}" data-k="unit_primary" type="text"></ha-textfield>
+          <ha-textfield label="Unit secondary" value="${c.unit_secondary}" data-k="unit_secondary" type="text"></ha-textfield>
           <ha-textfield label="Decimals primary" value="${c.decimals_primary}" type="number" data-k="decimals_primary"></ha-textfield>
           <ha-textfield label="Decimals secondary" value="${c.decimals_secondary}" type="number" data-k="decimals_secondary"></ha-textfield>
-
-          <ha-textfield label="Top label" value="${c.top_label_text}" data-k="top_label_text"></ha-textfield>
-          <ha-textfield label="Top label color" value="${c.top_label_color}" data-k="top_label_color"></ha-textfield>
+          <ha-textfield label="Top label" value="${c.top_label_text}" data-k="top_label_text" type="text"></ha-textfield>
+          <ha-textfield label="Top label color" value="${c.top_label_color}" data-k="top_label_color" type="text"></ha-textfield>
           <ha-textfield label="Top label weight" value="${c.top_label_weight}" type="number" data-k="top_label_weight"></ha-textfield>
 
           <div class="lbl">Kleurstops (0.0–1.0)</div>
@@ -266,32 +256,34 @@
             </div>`).join("")}
         </div>
       `;
-      this.querySelectorAll("[data-k]").forEach(el=>{
-        el.addEventListener("input",e=>this._onChange(e));
-        el.addEventListener("change",e=>this._onChange(e));
+      this.querySelectorAll("[data-k]").forEach(el => {
+        el.addEventListener("input", e => this._onChange(e));
+        el.addEventListener("change", e => this._onChange(e));
       });
     }
 
-    _onChange(ev){
-      const el=ev.currentTarget;
-      const key=el.getAttribute("data-k");
-      let val=el.value;
-      if(el.type==="number"||el.tagName==="HA-SLIDER"){val=Number(val);}
-      this._config={...this._config,[key]:val};
-      this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config}}));
-      if(key.startsWith("stop_")){
-        const span=el.parentElement?.querySelector(".lbl");
-        if(span) span.textContent=`${key}: ${this._config[key]}`;
+    _onChange(ev) {
+      const el = ev.currentTarget;
+      const key = el.getAttribute("data-k");
+      let val = el.value;
+      if (el.type === "number" || el.tagName === "HA-SLIDER") { val = Number(val); }
+      this._config = { ...this._config, [key]: val };
+      this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config } }));
+      if (key.startsWith("stop_")) {
+        const span = el.parentElement?.querySelector(".lbl");
+        if (span) span.textContent = `${key}: ${this._config[key]}`;
       }
     }
 
-    connectedCallback(){this._render();}
+    connectedCallback() { this._render(); }
   }
 
-  // ---------- Registratie ----------
-  try{
-    if(!customElements.get("donut-card"))customElements.define("donut-card",DonutCard);
-    if(!customElements.get("donut-card-editor"))customElements.define("donut-card-editor",DonutCardEditor);
+  /* ---------- Registratie ---------- */
+  try {
+    if (!customElements.get("donut-card")) customElements.define("donut-card", DonutCard);
+    if (!customElements.get("donut-card-editor")) customElements.define("donut-card-editor", DonutCardEditor);
     console.info(`🟢 ${TAG} v${VERSION} geladen`);
-  }catch(e){console.error("❌ Fout bij registratie donut-card:",e);}
+  } catch (e) {
+    console.error("❌ Fout bij registratie donut-card:", e);
+  }
 })();
