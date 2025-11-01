@@ -8,7 +8,7 @@
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "10.0";
+  const VERSION = "11.0";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -18,7 +18,9 @@
       this._config = null;
     }
 
-    static getConfigElement() { return document.createElement("donut-card-editor"); }
+    static getConfigElement() {
+      return document.createElement("donut-card-editor");
+    }
 
     static getStubConfig() {
       return {
@@ -27,6 +29,7 @@
         min_value: 0,
         max_value: 100,
 
+        // 🏷️ Labels & tekst
         top_label_text: "Donut",
         top_label_weight: 400,
         top_label_color: "#ffffff",
@@ -40,11 +43,13 @@
         decimals_primary: 0,
         decimals_secondary: 2,
 
+        // 🟢 Ring Layout
         ring_radius: 65,
         ring_width: 8,
         ring_offset_y: 0,
         label_ring_gap: 17,
 
+        // 🎨 Kleurinstellingen
         background: "var(--card-background-color)",
         border_radius: "12px",
         border: "1px solid rgba(255,255,255,0.2)",
@@ -52,6 +57,7 @@
         padding: "0px",
         track_color: "#000000",
 
+        // 🌈 Stops
         stop_1: 0.10, color_1: "#ff0000",
         stop_2: 0.30, color_2: "#fb923c",
         stop_3: 0.50, color_3: "#facc15",
@@ -60,23 +66,46 @@
       };
     }
 
-    setConfig(config) { this._config = { ...DonutCard.getStubConfig(), ...config }; }
-    set hass(hass) { this._hass = hass; this.render(); }
+    setConfig(config) {
+      this._config = { ...DonutCard.getStubConfig(), ...config };
+    }
 
-    _clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-    _lerp(a, b, t) { return a + (b - a) * t; }
+    set hass(hass) {
+      this._hass = hass;
+      this.render();
+    }
+
+    _clamp(v, a, b) {
+      return Math.max(a, Math.min(b, v));
+    }
+
+    _lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
     _hex2rgb(h) {
       const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(h).trim());
-      return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : { r: 255, g: 255, b: 255 };
+      return m
+        ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) }
+        : { r: 255, g: 255, b: 255 };
     }
+
     _rgb2hex(r, g, b) {
-      const p = v => this._clamp(Math.round(v), 0, 255).toString(16).padStart(2, "0");
+      const p = (v) =>
+        this._clamp(Math.round(v), 0, 255).toString(16).padStart(2, "0");
       return `#${p(r)}${p(g)}${p(b)}`;
     }
+
     _lerpColor(a, b, t) {
-      const A = this._hex2rgb(a), B = this._hex2rgb(b);
-      return this._rgb2hex(this._lerp(A.r, B.r, t), this._lerp(A.g, B.g, t), this._lerp(A.b, B.b, t));
+      const A = this._hex2rgb(a),
+        B = this._hex2rgb(b);
+      return this._rgb2hex(
+        this._lerp(A.r, B.r, t),
+        this._lerp(A.g, B.g, t),
+        this._lerp(A.b, B.b, t)
+      );
     }
+
     _colorAtStops(stops, t) {
       t = this._clamp(t, 0, 1);
       for (let i = 0; i < stops.length - 1; i++) {
@@ -89,11 +118,14 @@
       }
       return stops[stops.length - 1][1];
     }
+
     _buildStops(c) {
-      return [1, 2, 3, 4, 5].map(i => [
-        this._clamp(Number(c[`stop_${i}`]), 0, 1),
-        c[`color_${i}`] || "#ffffff",
-      ]).sort((a, b) => a[0] - b[0]);
+      return [1, 2, 3, 4, 5]
+        .map((i) => [
+          this._clamp(Number(c[`stop_${i}`]), 0, 1),
+          c[`color_${i}`] || "#ffffff",
+        ])
+        .sort((a, b) => a[0] - b[0]);
     }
 
     render() {
@@ -105,7 +137,9 @@
       if (!ent1) return;
 
       const val1 = Number(String(ent1.state).replace(",", ".")) || 0;
-      const val2 = ent2 ? Number(String(ent2.state).replace(",", ".")) : null;
+      const val2 = ent2
+        ? Number(String(ent2.state).replace(",", "."))
+        : null;
       const min = Number(c.min_value ?? 0);
       const max = Number(c.max_value ?? 100);
       const frac = this._clamp((val1 - min) / Math.max(max - min, 1e-9), 0, 1);
@@ -120,12 +154,12 @@
       const stops = this._buildStops(c);
 
       const arcSeg = (a0, a1, sw, color) => {
-        const toRad = d => (d * Math.PI) / 180;
+        const toRad = (d) => (d * Math.PI) / 180;
         const x0 = cx + R * Math.cos(toRad(a0));
         const y0 = cy + R * Math.sin(toRad(a0));
         const x1 = cx + R * Math.cos(toRad(a1));
         const y1 = cy + R * Math.sin(toRad(a1));
-        const large = (a1 - a0) > 180 ? 1 : 0;
+        const large = a1 - a0 > 180 ? 1 : 0;
         return `<path d="M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1}"
                 fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`;
       };
@@ -136,7 +170,8 @@
                   stroke="${c.track_color}" stroke-width="${W}" opacity="0.3"/>
       `;
 
-      const start = rot, end = rot + span;
+      const start = rot,
+        end = rot + span;
       for (let i = 0; i < segs; i++) {
         const a0 = start + (i / segs) * span;
         const a1 = start + ((i + 1) / segs) * span;
@@ -148,7 +183,8 @@
 
       if ((c.top_label_text ?? "").trim() !== "") {
         const fs_top = R * 0.35;
-        const y_top = (cy - R) - (W * 0.8) - fs_top * 0.25 - Number(c.label_ring_gap || 0);
+        const y_top =
+          cy - R - W * 0.8 - fs_top * 0.25 - Number(c.label_ring_gap || 0);
         svg += `
           <text x="${cx}" y="${y_top}" font-size="${fs_top}"
                 font-weight="${c.top_label_weight}" fill="${c.top_label_color}"
@@ -157,8 +193,8 @@
       }
 
       const textColor = c.text_color_inside || "#ffffff";
-      const fs1 = R * (c.font_scale_ent1 ?? 0.30);
-      const fs2 = R * (c.font_scale_ent2 ?? 0.30);
+      const fs1 = R * (c.font_scale_ent1 ?? 0.3);
+      const fs2 = R * (c.font_scale_ent2 ?? 0.3);
       const y1 = cy - R * 0.05;
       const y2 = cy + R * 0.35;
 
@@ -202,14 +238,17 @@
     }
   }
 
-  /* ---------- UI EDITOR (with ha-entity-picker) ---------- */
+  /* ---------- UI EDITOR ---------- */
   class DonutCardEditor extends HTMLElement {
-    setConfig(config){this._config=config||{};this._render();}
+    setConfig(config) {
+      this._config = config || {};
+      this._render();
+    }
 
-    _render(){
-      if(!this.isConnected)return;
-      const c={...DonutCard.getStubConfig(),...this._config};
-      this.innerHTML=`
+    _render() {
+      if (!this.isConnected) return;
+      const c = { ...DonutCard.getStubConfig(), ...this._config };
+      this.innerHTML = `
         <style>
           ha-textfield, ha-slider, ha-entity-picker { width:100%; }
           .segrow { display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center; }
@@ -241,31 +280,37 @@
             </div>`).join("")}
         </div>
       `;
-      this.querySelectorAll("[data-k]").forEach(el=>{
-        el.addEventListener("input",e=>this._onChange(e));
-        el.addEventListener("change",e=>this._onChange(e));
+      this.querySelectorAll("[data-k]").forEach((el) => {
+        el.addEventListener("input", (e) => this._onChange(e));
+        el.addEventListener("change", (e) => this._onChange(e));
       });
     }
 
-    _onChange(ev){
-      const el=ev.currentTarget;
-      const key=el.getAttribute("data-k");
-      let val=el.value ?? el._value ?? "";
-      if(el.type==="number"||el.tagName==="HA-SLIDER"){val=Number(val);}
-      this._config={...this._config,[key]:val};
-      this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config}}));
-      if(key.startsWith("stop_")){
-        const span=el.parentElement?.querySelector(".lbl");
-        if(span) span.textContent=\`\${key}: \${this._config[key]}\`;
+    _onChange(ev) {
+      const el = ev.currentTarget;
+      const key = el.getAttribute("data-k");
+      let val = el.value ?? el._value ?? "";
+      if (el.type === "number" || el.tagName === "HA-SLIDER") val = Number(val);
+      this._config = { ...this._config, [key]: val };
+      this.dispatchEvent(
+        new CustomEvent("config-changed", { detail: { config: this._config } })
+      );
+      if (key.startsWith("stop_")) {
+        const span = el.parentElement?.querySelector(".lbl");
+        if (span) span.textContent = `${key}: ${this._config[key]}`;
       }
     }
 
-    connectedCallback(){this._render();}
+    connectedCallback() {
+      this._render();
+    }
   }
 
   try {
-    if (!customElements.get("donut-card")) customElements.define("donut-card", DonutCard);
-    if (!customElements.get("donut-card-editor")) customElements.define("donut-card-editor", DonutCardEditor);
+    if (!customElements.get("donut-card"))
+      customElements.define("donut-card", DonutCard);
+    if (!customElements.get("donut-card-editor"))
+      customElements.define("donut-card-editor", DonutCardEditor);
     console.info(`🟢 ${TAG} v${VERSION} geladen`);
   } catch (e) {
     console.error("❌ Fout bij registratie donut-card:", e);
