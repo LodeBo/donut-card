@@ -1,7 +1,7 @@
 {
   "name": "Donut Card",
   "description": "A donut card with battery/theme/colors",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "frontend": true,
   "authors": ["LodeB"]
 }
