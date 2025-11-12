@@ -1,11 +1,10 @@
 /*!
- * 🟢 Donut Card v11.2 (focusfix)
- * Twee entiteiten, smooth gradient, 5 stops (UI), theme-aware
+ * 🟢 Donut Card v1.0 (met % gradient stops, kleurfix en editor-fix)
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.0.0";
+  const VERSION = "1.0";
 
   class DonutCard extends HTMLElement {
     constructor(){
@@ -30,7 +29,7 @@
         border: "1px solid rgba(255,255,255,0.2)",
         box_shadow: "none", padding: "0px",
         track_color: "#000000",
-        stop_1: 0.10, color_1: "#ff0000",
+        stop_1: 0.00, color_1: "#ff0000",
         stop_2: 0.30, color_2: "#fb923c",
         stop_3: 0.50, color_3: "#facc15",
         stop_4: 0.75, color_4: "#34d399",
@@ -39,6 +38,7 @@
     }
     setConfig(config){ this._config = { ...DonutCard.getStubConfig(), ...config }; }
     set hass(h){ this._hass=h; this.render(); }
+
     _clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
     _lerp(a,b,t){ return a+(b-a)*t; }
     _hex2rgb(h){
@@ -59,9 +59,19 @@
       return stops[stops.length-1][1];
     }
     _buildStops(c){
-      return [1,2,3,4,5]
-        .map(i=>[ this._clamp(Number(c['stop_'+i]),0,1), c['color_'+i] || "#ffffff" ])
-        .sort((a,b)=>a[0]-b[0]);
+      // always 0 for stop_1, others from config
+      return [
+        [ 0.00, this._sanitizeColor(c['color_1']) ],
+        [ this._clamp(Number(c['stop_2']),0,1), this._sanitizeColor(c['color_2']) ],
+        [ this._clamp(Number(c['stop_3']),0,1), this._sanitizeColor(c['color_3']) ],
+        [ this._clamp(Number(c['stop_4']),0,1), this._sanitizeColor(c['color_4']) ],
+        [ this._clamp(Number(c['stop_5']),0,1), this._sanitizeColor(c['color_5']) ]
+      ].sort((a,b)=>a[0]-b[0]);
+    }
+    _sanitizeColor(color) {
+      return (typeof color === 'string' && /^#[0-9A-F]{6}$/i.test(color.trim()))
+        ? color.trim()
+        : "#ffffff";
     }
     render(){
       if(!this._config || !this._hass) return;
@@ -69,13 +79,16 @@
       const ent1=h.states?.[c.entity_primary];
       const ent2=c.entity_secondary ? h.states?.[c.entity_secondary] : null;
       if(!ent1) return;
+
       const val1=Number(String(ent1.state).replace(",", ".")) || 0;
       const val2=ent2? Number(String(ent2.state).replace(",", ".")) : null;
       const min=Number(c.min_value??0), max=Number(c.max_value??100);
       const frac=this._clamp((val1-min)/Math.max(max-min,1e-9),0,1);
+
       const R=Number(c.ring_radius), W=Number(c.ring_width);
       const cx=130, cy=130+Number(c.ring_offset_y||0), rot=-90, segs=140;
       const span=frac*360, stops=this._buildStops(c);
+
       const arcSeg=(a0,a1,sw,color)=>{
         const toRad=d=>(d*Math.PI)/180;
         const x0=cx+R*Math.cos(toRad(a0)), y0=cy+R*Math.sin(toRad(a0));
@@ -83,6 +96,7 @@
         const large=(a1-a0)>180?1:0;
         return `<path d="M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`;
       };
+
       let svg = `
         <svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
           <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${c.track_color}" stroke-width="${W}" opacity="0.3"/>
@@ -108,6 +122,7 @@
         svg += `<text x="${cx}" y="${y2}" text-anchor="middle" font-size="${fs2}" font-weight="300" fill="${textColor}">${val2.toFixed(c.decimals_secondary)} ${c.unit_secondary}</text>`;
       }
       svg += `</svg>`;
+
       const style=`
         <style>
           :host{display:block;width:100%;height:100%;}
@@ -123,37 +138,49 @@
     }
   }
 
-  /* ------- UI EDITOR (focus fixed) ------- */
   class DonutCardEditor extends HTMLElement {
     constructor() {
       super();
       this._config = {};
       this._initDone = false;
     }
-
     setConfig(config) {
       this._config = { ...DonutCard.getStubConfig(), ...config };
-      // update UI fields, do not re-render whole editor
       if (this._initDone) this._updateFields();
     }
-
+    _sanitizeColor(color) {
+      return (typeof color === 'string' && /^#[0-9A-F]{6}$/i.test(color.trim()))
+        ? color.trim()
+        : "#ffffff";
+    }
     _render() {
       if (!this.isConnected) return;
       const c = this._config;
-      // stop rows
-      const stopRows = [1,2,3,4,5].map(i=>{
+      // Stop 1: kleurpicker, 0%
+      const stopOne = `
+        <div class="segrow">
+          <div class="color">
+            <input type="color" value="${this._sanitizeColor(c.color_1)}" data-k="color_1">
+            <span class="lbl">stop_1: 0%</span>
+          </div>
+        </div>
+      `;
+      // Stops 2-5: percentage slider + kleurpicker
+      const stopRest = [2,3,4,5].map(i => {
         const stopKey = 'stop_' + i;
         const colorKey = 'color_' + i;
+        const pct = Math.round((c[stopKey] || 0) * 100);
         return (
           `<div class="segrow">
-            <ha-slider min="0" max="1" step="0.01" value="${c[stopKey]}" data-k="${stopKey}"></ha-slider>
+            <ha-slider min="0" max="100" step="1" value="${pct}" data-k="${stopKey}"></ha-slider>
             <div class="color">
-              <input type="color" value="${c[colorKey]}" data-k="${colorKey}">
-              <span class="lbl">${stopKey}: ${c[stopKey]}</span>
+              <input type="color" value="${this._sanitizeColor(c[colorKey])}" data-k="${colorKey}">
+              <span class="lbl">${stopKey}: ${pct}%</span>
             </div>
           </div>`
         );
       }).join("");
+
       this.innerHTML = `
         <style>
           ha-textfield, ha-slider, ha-entity-picker{width:100%;}
@@ -173,8 +200,9 @@
           <ha-textfield label="Top label" value="${c.top_label_text}" data-k="top_label_text" type="text"></ha-textfield>
           <ha-textfield label="Top label color" value="${c.top_label_color}" data-k="top_label_color" type="text"></ha-textfield>
           <ha-textfield label="Top label weight" value="${c.top_label_weight}" type="number" data-k="top_label_weight"></ha-textfield>
-          <div class="lbl">Kleurstops (0.0–1.0)</div>
-          ${stopRows}
+          <div class="lbl">Kleurstops</div>
+          ${stopOne}
+          ${stopRest}
         </div>
       `;
       this._initEventHandlers();
@@ -182,55 +210,70 @@
     }
 
     _updateFields() {
-      // update UI values without rebuilding DOM, preserves focus!
       Object.keys(this._config).forEach(key => {
         const el = this.querySelector(`[data-k="${key}"]`);
         if (!el) return;
-        // update value if needed
-        if ('value' in el && el.value != this._config[key]) {
-          el.value = this._config[key];
+        if (key.startsWith("color_")) {
+          el.value = this._sanitizeColor(this._config[key]);
         }
-        // update slider value for ha-slider
-        if (el.tagName === 'HA-SLIDER') {
-          el.setAttribute('value', this._config[key]);
-        }
-        // update label for stops
-        if (key.startsWith('stop_')) {
+        if (key.startsWith("stop_")) {
+          if (el.tagName === 'HA-SLIDER') el.setAttribute('value', Math.round(this._config[key] * 100));
           const span = el.parentElement?.querySelector(".lbl");
-          if (span) span.textContent = `${key}: ${this._config[key]}`;
+          if (span) span.textContent = `${key}: ${Math.round(this._config[key] * 100)}%`;
+        }
+        if ('value' in el && el.value != this._config[key]) {
+          if (el.tagName !== 'HA-SLIDER' && !key.startsWith("stop_")) el.value = this._config[key];
         }
       });
     }
-
     _initEventHandlers() {
       this.querySelectorAll("[data-k]").forEach(el => {
         el.oninput = el.onchange = (ev) => {
           const key = el.getAttribute("data-k");
           let val = el.value;
-          if (el.type === "number" || el.tagName === "HA-SLIDER") val = Number(val);
+          if (el.tagName === "HA-SLIDER") {
+            val = Number(val) / 100;
+          }
+          if (el.type === "number" && key.startsWith("stop_")) {
+            val = Number(val) / 100;
+          }
+          if (key.startsWith("color_")) {
+            val = this._sanitizeColor(val);
+          }
           this._config = { ...this._config, [key]: val };
           this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config}}));
-          // update label for stops
           if(key.startsWith("stop_")){
             const span = el.parentElement?.querySelector(".lbl");
-            if(span) span.textContent = `${key}: ${this._config[key]}`;
+            if(span) span.textContent = `${key}: ${Math.round(val * 100)}%`;
+          }
+          if(key.startsWith("color_")){
+            el.value = this._sanitizeColor(val);
           }
         };
-        // voor HA componenten evt ook value-changed
         el.addEventListener("value-changed", (ev) => {
           const key = el.getAttribute("data-k");
           let val = (ev.detail && ev.detail.value !== undefined) ? ev.detail.value : el.value;
-          if (el.type === "number" || el.tagName === "HA-SLIDER") val = Number(val);
+          if (el.tagName === "HA-SLIDER") {
+            val = Number(val) / 100;
+          }
+          if (el.type === "number" && key.startsWith("stop_")) {
+            val = Number(val) / 100;
+          }
+          if (key.startsWith("color_")) {
+            val = this._sanitizeColor(val);
+          }
           this._config = { ...this._config, [key]: val };
           this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config}}));
           if(key.startsWith("stop_")){
             const span = el.parentElement?.querySelector(".lbl");
-            if(span) span.textContent = `${key}: ${this._config[key]}`;
+            if(span) span.textContent = `${key}: ${Math.round(val * 100)}%`;
+          }
+          if(key.startsWith("color_")){
+            el.value = this._sanitizeColor(val);
           }
         });
       });
     }
-
     connectedCallback() {
       this._render();
     }
@@ -244,4 +287,3 @@
     console.error("❌ Fout bij registratie donut-card:", e);
   }
 })();
-  
