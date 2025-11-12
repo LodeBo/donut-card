@@ -1,10 +1,9 @@
 /*!
- * 🟢 Donut Card v1.0 (gradient stops als %, kleurfix, editor-fix)
+ * 🟢 Donut Card v1.1 (kleurpicker fix: value wordt altijd gezet en gesanitized)
  */
-
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.0.2";
+  const VERSION = "1.0.3";
 
   class DonutCard extends HTMLElement {
     constructor(){
@@ -59,11 +58,12 @@
       return stops[stops.length-1][1];
     }
     _sanitizeColor(color) {
+      // geldige hex value: #RRGGBB, anders standaard rood
       if (typeof color === 'string' && /^#[0-9A-F]{6}$/i.test(color.trim()))
         return color.trim();
       if (typeof color === 'string' && /^#[0-9A-F]{3}$/i.test(color.trim()))
         return '#' + color.substr(1).split('').map(s => s+s).join('');
-      return "#ffffff";
+      return "#ff0000";
     }
     _buildStops(c){
       // Stop 1 altijd op 0, rest uit config
@@ -75,7 +75,6 @@
         [ this._clamp(Number(c['stop_5']),0,1), this._sanitizeColor(c['color_5']) ]
       ].sort((a,b)=>a[0]-b[0]);
     }
-
     render(){
       if(!this._config || !this._hass) return;
       const c=this._config, h=this._hass;
@@ -129,11 +128,9 @@
       const style=`
         <style>
           :host{display:block;width:100%;height:100%;}
-          ha-card{
-            background:${c.background};border-radius:${c.border_radius};
-            border:${c.border};box-shadow:${c.box_shadow};padding:${c.padding};
-            display:flex;align-items:center;justify-content:center;width:100%;height:100%;
-          }
+          ha-card{background:${c.background};border-radius:${c.border_radius};
+          border:${c.border};box-shadow:${c.box_shadow};padding:${c.padding};
+          display:flex;align-items:center;justify-content:center;width:100%;height:100%;}
           .wrap{width:100%;height:100%;max-width:520px;display:flex;align-items:center;justify-content:center;position:relative;}
           svg{width:100%;height:auto;display:block;} text{user-select:none;}
         </style>`;
@@ -149,17 +146,18 @@
     }
     setConfig(config) {
       this._config = { ...DonutCard.getStubConfig(), ...config };
-      this._updateFields();
+      this._render();
+      this._updateFields(); // colors worden ZEKER gezet op value (en gesanitized!)
     }
     _sanitizeColor(color) {
+      // altijd geldige hex
       if (typeof color === 'string' && /^#[0-9A-F]{6}$/i.test(color.trim()))
         return color.trim();
       if (typeof color === 'string' && /^#[0-9A-F]{3}$/i.test(color.trim()))
-        return '#' + color.substr(1).split('').map(s => s+s).join('');
-      return "#ffffff";
+        return '#' + color.substr(1).split('').map(s => s + s).join('');
+      return "#ff0000";
     }
     _render() {
-      if (!this.isConnected) return;
       const c = this._config;
       // Stop 1: kleurpicker, 0%
       const stopOne = `
@@ -185,7 +183,6 @@
           </div>`
         );
       }).join("");
-
       this.innerHTML = `
         <style>
           ha-textfield, ha-slider, ha-entity-picker{width:100%;}
@@ -213,21 +210,21 @@
       this._initEventHandlers();
       this._initDone = true;
     }
-
     _updateFields() {
-      Object.keys(this._config).forEach(key => {
-        const el = this.querySelector(`[data-k="${key}"]`);
-        if (!el) return;
-        if (key.startsWith("color_")) {
-          el.value = this._sanitizeColor(this._config[key]);
+      const c = this._config;
+      ["color_1","color_2","color_3","color_4","color_5"].forEach(colorKey=>{
+        const el = this.querySelector(`[data-k="${colorKey}"]`);
+        if(el){
+          el.value = this._sanitizeColor(c[colorKey]);
         }
-        if (key.startsWith("stop_")) {
-          if (el.tagName === 'HA-SLIDER') el.setAttribute('value', Math.round(this._config[key] * 100));
+      });
+      [2,3,4,5].forEach(i => {
+        const stopKey = "stop_" + i;
+        const el = this.querySelector(`[data-k="${stopKey}"]`);
+        if(el){
+          el.setAttribute("value", Math.round((c[stopKey]||0)*100));
           const span = el.parentElement?.querySelector(".lbl");
-          if (span) span.textContent = `${key}: ${Math.round(this._config[key] * 100)}%`;
-        }
-        if ('value' in el && el.value != this._config[key]) {
-          if (el.tagName !== 'HA-SLIDER' && !key.startsWith("stop_")) el.value = this._config[key];
+          if(span) span.textContent = `${stopKey}: ${Math.round((c[stopKey]||0)*100)}%`;
         }
       });
     }
@@ -281,6 +278,7 @@
     }
     connectedCallback() {
       this._render();
+      this._updateFields();
     }
   }
 
@@ -292,4 +290,3 @@
     console.error("❌ Fout bij registratie donut-card:", e);
   }
 })();
-
