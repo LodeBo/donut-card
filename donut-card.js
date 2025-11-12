@@ -1,9 +1,9 @@
 /*!
- * 🟢 Donut Card v1.1 (kleurpicker fix: value wordt altijd gezet en gesanitized)
+ * 🟢 Donut Card v1.2 (start_color, focusfix, 2 entiteiten in UI editor)
  */
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.0.3";
+  const VERSION = "1.0.4";
 
   class DonutCard extends HTMLElement {
     constructor(){
@@ -28,7 +28,7 @@
         border: "1px solid rgba(255,255,255,0.2)",
         box_shadow: "none", padding: "0px",
         track_color: "#000000",
-        stop_1: 0.00, color_1: "#ff0000",
+        start_color: "#ff0000",
         stop_2: 0.30, color_2: "#fb923c",
         stop_3: 0.50, color_3: "#facc15",
         stop_4: 0.75, color_4: "#34d399",
@@ -66,9 +66,9 @@
       return "#ff0000";
     }
     _buildStops(c){
-      // Stop 1 altijd op 0, rest uit config
+      // Start_color altijd op 0, rest uit config
       return [
-        [ 0.00, this._sanitizeColor(c['color_1']) ],
+        [ 0.00, this._sanitizeColor(c['start_color']) ],
         [ this._clamp(Number(c['stop_2']),0,1), this._sanitizeColor(c['color_2']) ],
         [ this._clamp(Number(c['stop_3']),0,1), this._sanitizeColor(c['color_3']) ],
         [ this._clamp(Number(c['stop_4']),0,1), this._sanitizeColor(c['color_4']) ],
@@ -138,37 +138,40 @@
     }
   }
 
+  /* -------- Editor met start_color, focusfix -------- */
   class DonutCardEditor extends HTMLElement {
     constructor() {
       super();
       this._config = {};
-      this._initDone = false;
     }
     setConfig(config) {
       this._config = { ...DonutCard.getStubConfig(), ...config };
-      this._render();
-      this._updateFields(); // colors worden ZEKER gezet op value (en gesanitized!)
+      this._updateFields();
     }
     _sanitizeColor(color) {
-      // altijd geldige hex
       if (typeof color === 'string' && /^#[0-9A-F]{6}$/i.test(color.trim()))
         return color.trim();
       if (typeof color === 'string' && /^#[0-9A-F]{3}$/i.test(color.trim()))
-        return '#' + color.substr(1).split('').map(s => s + s).join('');
+        return '#' + color.substr(1).split('').map(s => s+s).join('');
       return "#ff0000";
     }
+    connectedCallback(){
+      this._render();
+      this._updateFields(); // bij eerste connect
+    }
+
     _render() {
       const c = this._config;
-      // Stop 1: kleurpicker, 0%
-      const stopOne = `
+      // Start_color: alleen kleurpicker, 0%
+      const startColorRow = `
         <div class="segrow">
           <div class="color">
-            <input type="color" value="${this._sanitizeColor(c.color_1)}" data-k="color_1">
-            <span class="lbl">stop_1: 0%</span>
+            <input type="color" value="${this._sanitizeColor(c.start_color)}" data-k="start_color">
+            <span class="lbl">start_color (begin 0%)</span>
           </div>
         </div>
       `;
-      // Stops 2-5: percentage slider + kleurpicker
+      // Stops 2-5: slider + kleurpicker
       const stopRest = [2,3,4,5].map(i => {
         const stopKey = 'stop_' + i;
         const colorKey = 'color_' + i;
@@ -183,6 +186,7 @@
           </div>`
         );
       }).join("");
+
       this.innerHTML = `
         <style>
           ha-textfield, ha-slider, ha-entity-picker{width:100%;}
@@ -203,82 +207,61 @@
           <ha-textfield label="Top label color" value="${c.top_label_color}" data-k="top_label_color" type="text"></ha-textfield>
           <ha-textfield label="Top label weight" value="${c.top_label_weight}" type="number" data-k="top_label_weight"></ha-textfield>
           <div class="lbl">Kleurstops</div>
-          ${stopOne}
+          ${startColorRow}
           ${stopRest}
         </div>
       `;
       this._initEventHandlers();
-      this._initDone = true;
     }
+
     _updateFields() {
       const c = this._config;
-      ["color_1","color_2","color_3","color_4","color_5"].forEach(colorKey=>{
-        const el = this.querySelector(`[data-k="${colorKey}"]`);
-        if(el){
-          el.value = this._sanitizeColor(c[colorKey]);
-        }
-      });
+      // Update ONLY value, niet her-renderen!
+      const startColorEl = this.querySelector(`[data-k="start_color"]`);
+      if(startColorEl){
+        startColorEl.value = this._sanitizeColor(c.start_color);
+      }
       [2,3,4,5].forEach(i => {
         const stopKey = "stop_" + i;
-        const el = this.querySelector(`[data-k="${stopKey}"]`);
-        if(el){
-          el.setAttribute("value", Math.round((c[stopKey]||0)*100));
-          const span = el.parentElement?.querySelector(".lbl");
+        const colorKey = "color_" + i;
+        const stopEl = this.querySelector(`[data-k="${stopKey}"]`);
+        const colorEl = this.querySelector(`[data-k="${colorKey}"]`);
+        if(stopEl){
+          stopEl.value = Math.round((c[stopKey]||0)*100);
+          const span = stopEl.parentElement?.querySelector(".lbl");
           if(span) span.textContent = `${stopKey}: ${Math.round((c[stopKey]||0)*100)}%`;
         }
+        if(colorEl){
+          colorEl.value = this._sanitizeColor(c[colorKey]);
+        }
+      });
+      ["entity_primary","entity_secondary","min_value","max_value","unit_primary","unit_secondary","decimals_primary","decimals_secondary","top_label_text","top_label_color","top_label_weight"].forEach(key=>{
+        const el = this.querySelector(`[data-k="${key}"]`);
+        if(el) el.value = c[key];
       });
     }
+
     _initEventHandlers() {
       this.querySelectorAll("[data-k]").forEach(el => {
-        el.oninput = el.onchange = (ev) => {
-          const key = el.getAttribute("data-k");
-          let val = el.value;
-          if (el.tagName === "HA-SLIDER") {
-            val = Number(val) / 100;
-          }
-          if (el.type === "number" && key.startsWith("stop_")) {
-            val = Number(val) / 100;
-          }
-          if (key.startsWith("color_")) {
-            val = this._sanitizeColor(val);
-          }
-          this._config = { ...this._config, [key]: val };
-          this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config}}));
-          if(key.startsWith("stop_")){
-            const span = el.parentElement?.querySelector(".lbl");
-            if(span) span.textContent = `${key}: ${Math.round(val * 100)}%`;
-          }
-          if(key.startsWith("color_")){
-            el.value = this._sanitizeColor(val);
-          }
-        };
-        el.addEventListener("value-changed", (ev) => {
-          const key = el.getAttribute("data-k");
-          let val = (ev.detail && ev.detail.value !== undefined) ? ev.detail.value : el.value;
-          if (el.tagName === "HA-SLIDER") {
-            val = Number(val) / 100;
-          }
-          if (el.type === "number" && key.startsWith("stop_")) {
-            val = Number(val) / 100;
-          }
-          if (key.startsWith("color_")) {
-            val = this._sanitizeColor(val);
-          }
-          this._config = { ...this._config, [key]: val };
-          this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config}}));
-          if(key.startsWith("stop_")){
-            const span = el.parentElement?.querySelector(".lbl");
-            if(span) span.textContent = `${key}: ${Math.round(val * 100)}%`;
-          }
-          if(key.startsWith("color_")){
-            el.value = this._sanitizeColor(val);
-          }
-        });
+        if (el._handlerSet) return; // voorkom dubbele events!
+        el._handlerSet = true;
+        el.addEventListener("input", ev => { this._processChange(el, ev); });
+        el.addEventListener("change", ev => { this._processChange(el, ev); });
+        el.addEventListener("value-changed", ev => { this._processChange(el, ev); });
       });
     }
-    connectedCallback() {
-      this._render();
+    _processChange(el, ev) {
+      const key = el.getAttribute("data-k");
+      let val = (ev.detail && ev.detail.value !== undefined) ? ev.detail.value : el.value;
+      if (el.tagName === "HA-SLIDER" || (el.type==="number" && key.startsWith("stop_"))) {
+        val = Number(val) / 100;
+      }
+      if (key === "start_color" || key.startsWith("color_")) {
+        val = this._sanitizeColor(val);
+      }
+      this._config = { ...this._config, [key]: val };
       this._updateFields();
+      this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config}}));
     }
   }
 
