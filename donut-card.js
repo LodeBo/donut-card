@@ -1,10 +1,10 @@
 /*!
- * 🟢 Donut Card v1.0 (met % gradient stops, kleurfix en editor-fix)
+ * 🟢 Donut Card v1.0 (gradient stops als %, kleurfix, editor-fix)
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.0.1";
+  const VERSION = "1.0.2";
 
   class DonutCard extends HTMLElement {
     constructor(){
@@ -58,8 +58,15 @@
       }
       return stops[stops.length-1][1];
     }
+    _sanitizeColor(color) {
+      if (typeof color === 'string' && /^#[0-9A-F]{6}$/i.test(color.trim()))
+        return color.trim();
+      if (typeof color === 'string' && /^#[0-9A-F]{3}$/i.test(color.trim()))
+        return '#' + color.substr(1).split('').map(s => s+s).join('');
+      return "#ffffff";
+    }
     _buildStops(c){
-      // always 0 for stop_1, others from config
+      // Stop 1 altijd op 0, rest uit config
       return [
         [ 0.00, this._sanitizeColor(c['color_1']) ],
         [ this._clamp(Number(c['stop_2']),0,1), this._sanitizeColor(c['color_2']) ],
@@ -68,11 +75,7 @@
         [ this._clamp(Number(c['stop_5']),0,1), this._sanitizeColor(c['color_5']) ]
       ].sort((a,b)=>a[0]-b[0]);
     }
-    _sanitizeColor(color) {
-      return (typeof color === 'string' && /^#[0-9A-F]{6}$/i.test(color.trim()))
-        ? color.trim()
-        : "#ffffff";
-    }
+
     render(){
       if(!this._config || !this._hass) return;
       const c=this._config, h=this._hass;
@@ -81,7 +84,7 @@
       if(!ent1) return;
 
       const val1=Number(String(ent1.state).replace(",", ".")) || 0;
-      const val2=ent2? Number(String(ent2.state).replace(",", ".")) : null;
+      const val2=ent2 ? Number(String(ent2.state).replace(",", ".")) : null;
       const min=Number(c.min_value??0), max=Number(c.max_value??100);
       const frac=this._clamp((val1-min)/Math.max(max-min,1e-9),0,1);
 
@@ -146,12 +149,14 @@
     }
     setConfig(config) {
       this._config = { ...DonutCard.getStubConfig(), ...config };
-      if (this._initDone) this._updateFields();
+      this._updateFields();
     }
     _sanitizeColor(color) {
-      return (typeof color === 'string' && /^#[0-9A-F]{6}$/i.test(color.trim()))
-        ? color.trim()
-        : "#ffffff";
+      if (typeof color === 'string' && /^#[0-9A-F]{6}$/i.test(color.trim()))
+        return color.trim();
+      if (typeof color === 'string' && /^#[0-9A-F]{3}$/i.test(color.trim()))
+        return '#' + color.substr(1).split('').map(s => s+s).join('');
+      return "#ffffff";
     }
     _render() {
       if (!this.isConnected) return;
@@ -287,3 +292,4 @@
     console.error("❌ Fout bij registratie donut-card:", e);
   }
 })();
+
