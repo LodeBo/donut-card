@@ -1,11 +1,11 @@
 /*!
- * 🟢 Donut Card v11.1
+ * 🟢 Donut Card v11.2 (focusfix)
  * Twee entiteiten, smooth gradient, 5 stops (UI), theme-aware
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "11.1";
+  const VERSION = "11.2";
 
   class DonutCard extends HTMLElement {
     constructor(){
@@ -14,31 +14,22 @@
       this._hass=null; this._config=null;
     }
     static getConfigElement(){ return document.createElement("donut-card-editor"); }
-
     static getStubConfig(){
       return {
         entity_primary: "sensor.example_power",
         entity_secondary: "sensor.example_energy",
         min_value: 0, max_value: 100,
-
-        // Labels & tekst
         top_label_text: "Donut", top_label_weight: 400,
         top_label_color: "#ffffff", text_color_inside: "#ffffff",
         font_scale_ent1: 0.30, font_scale_ent2: 0.30,
         unit_primary: "W", unit_secondary: "kWh",
         decimals_primary: 0, decimals_secondary: 2,
-
-        // Ring
         ring_radius: 65, ring_width: 8, ring_offset_y: 0, label_ring_gap: 17,
-
-        // Stijl
         background: "var(--card-background-color)",
         border_radius: "12px",
         border: "1px solid rgba(255,255,255,0.2)",
         box_shadow: "none", padding: "0px",
         track_color: "#000000",
-
-        // Stops (pos 0..1)
         stop_1: 0.10, color_1: "#ff0000",
         stop_2: 0.30, color_2: "#fb923c",
         stop_3: 0.50, color_3: "#facc15",
@@ -46,10 +37,8 @@
         stop_5: 1.00, color_5: "#00bcd4",
       };
     }
-
     setConfig(config){ this._config = { ...DonutCard.getStubConfig(), ...config }; }
     set hass(h){ this._hass=h; this.render(); }
-
     _clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
     _lerp(a,b,t){ return a+(b-a)*t; }
     _hex2rgb(h){
@@ -74,23 +63,19 @@
         .map(i=>[ this._clamp(Number(c['stop_'+i]),0,1), c['color_'+i] || "#ffffff" ])
         .sort((a,b)=>a[0]-b[0]);
     }
-
     render(){
       if(!this._config || !this._hass) return;
       const c=this._config, h=this._hass;
       const ent1=h.states?.[c.entity_primary];
       const ent2=c.entity_secondary ? h.states?.[c.entity_secondary] : null;
       if(!ent1) return;
-
       const val1=Number(String(ent1.state).replace(",", ".")) || 0;
       const val2=ent2? Number(String(ent2.state).replace(",", ".")) : null;
       const min=Number(c.min_value??0), max=Number(c.max_value??100);
       const frac=this._clamp((val1-min)/Math.max(max-min,1e-9),0,1);
-
       const R=Number(c.ring_radius), W=Number(c.ring_width);
       const cx=130, cy=130+Number(c.ring_offset_y||0), rot=-90, segs=140;
       const span=frac*360, stops=this._buildStops(c);
-
       const arcSeg=(a0,a1,sw,color)=>{
         const toRad=d=>(d*Math.PI)/180;
         const x0=cx+R*Math.cos(toRad(a0)), y0=cy+R*Math.sin(toRad(a0));
@@ -98,7 +83,6 @@
         const large=(a1-a0)>180?1:0;
         return `<path d="M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`;
       };
-
       let svg = `
         <svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
           <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${c.track_color}" stroke-width="${W}" opacity="0.3"/>
@@ -110,24 +94,20 @@
         const mid=(a0+a1)/2, t=(mid-rot)/360;
         svg += arcSeg(a0,a1,W,this._colorAtStops(stops,t));
       }
-
       if((c.top_label_text??"").trim()!==""){
         const fs_top=R*0.35;
         const y_top=(cy-R)-(W*0.8)-fs_top*0.25-Number(c.label_ring_gap||0);
         svg += `<text x="${cx}" y="${y_top}" font-size="${fs_top}" font-weight="${c.top_label_weight}" fill="${c.top_label_color}" text-anchor="middle" dominant-baseline="middle">${c.top_label_text}</text>`;
       }
-
       const textColor=c.text_color_inside || "#ffffff";
       const fs1=R*(c.font_scale_ent1??0.30);
       const fs2=R*(c.font_scale_ent2??0.30);
       const y1=cy-R*0.05, y2=cy+R*0.35;
-
       svg += `<text x="${cx}" y="${y1}" text-anchor="middle" font-size="${fs1}" font-weight="400" fill="${textColor}">${val1.toFixed(c.decimals_primary)} ${c.unit_primary}</text>`;
       if(ent2){
         svg += `<text x="${cx}" y="${y2}" text-anchor="middle" font-size="${fs2}" font-weight="300" fill="${textColor}">${val2.toFixed(c.decimals_secondary)} ${c.unit_secondary}</text>`;
       }
       svg += `</svg>`;
-
       const style=`
         <style>
           :host{display:block;width:100%;height:100%;}
@@ -143,28 +123,37 @@
     }
   }
 
-  /* ------- UI EDITOR (no freezes) ------- */
+  /* ------- UI EDITOR (focus fixed) ------- */
   class DonutCardEditor extends HTMLElement {
-    setConfig(config){ this._config=config||{}; this._render(); }
+    constructor() {
+      super();
+      this._config = {};
+      this._initDone = false;
+    }
 
-    _render(){
-      if(!this.isConnected) return;
-      const c={...DonutCard.getStubConfig(), ...this._config};
+    setConfig(config) {
+      this._config = { ...DonutCard.getStubConfig(), ...config };
+      // update UI fields, do not re-render whole editor
+      if (this._initDone) this._updateFields();
+    }
 
-      // build stops rows without nested backticks
+    _render() {
+      if (!this.isConnected) return;
+      const c = this._config;
+      // stop rows
       const stopRows = [1,2,3,4,5].map(i=>{
         const stopKey = 'stop_' + i;
         const colorKey = 'color_' + i;
         return (
-          '<div class="segrow">' +
-          `<ha-slider min="0" max="1" step="0.01" value="${c[stopKey]}" data-k="${stopKey}"></ha-slider>`+
-          '<div class="color">' +
-          `<input type="color" value="${c[colorKey]}" data-k="${colorKey}">` +
-          `<span class="lbl">${stopKey}: ${c[stopKey]}</span>` +
-          '</div></div>'
+          `<div class="segrow">
+            <ha-slider min="0" max="1" step="0.01" value="${c[stopKey]}" data-k="${stopKey}"></ha-slider>
+            <div class="color">
+              <input type="color" value="${c[colorKey]}" data-k="${colorKey}">
+              <span class="lbl">${stopKey}: ${c[stopKey]}</span>
+            </div>
+          </div>`
         );
       }).join("");
-
       this.innerHTML = `
         <style>
           ha-textfield, ha-slider, ha-entity-picker{width:100%;}
@@ -175,44 +164,76 @@
         <div class="editor">
           <ha-entity-picker label="Entity primary" value="${c.entity_primary}" data-k="entity_primary" allow-custom-entity></ha-entity-picker>
           <ha-entity-picker label="Entity secondary" value="${c.entity_secondary}" data-k="entity_secondary" allow-custom-entity></ha-entity-picker>
-
           <ha-textfield label="Min" value="${c.min_value}" type="number" data-k="min_value"></ha-textfield>
           <ha-textfield label="Max" value="${c.max_value}" type="number" data-k="max_value"></ha-textfield>
-
           <ha-textfield label="Unit primary" value="${c.unit_primary}" data-k="unit_primary" type="text"></ha-textfield>
           <ha-textfield label="Unit secondary" value="${c.unit_secondary}" data-k="unit_secondary" type="text"></ha-textfield>
           <ha-textfield label="Decimals primary" value="${c.decimals_primary}" type="number" data-k="decimals_primary"></ha-textfield>
           <ha-textfield label="Decimals secondary" value="${c.decimals_secondary}" type="number" data-k="decimals_secondary"></ha-textfield>
-
           <ha-textfield label="Top label" value="${c.top_label_text}" data-k="top_label_text" type="text"></ha-textfield>
           <ha-textfield label="Top label color" value="${c.top_label_color}" data-k="top_label_color" type="text"></ha-textfield>
           <ha-textfield label="Top label weight" value="${c.top_label_weight}" type="number" data-k="top_label_weight"></ha-textfield>
-
           <div class="lbl">Kleurstops (0.0–1.0)</div>
           ${stopRows}
         </div>
       `;
+      this._initEventHandlers();
+      this._initDone = true;
+    }
 
-      // events (ook value-changed voor HA componenten)
-      this.querySelectorAll("[data-k]").forEach(el=>{
-        const handler = (ev)=>{
+    _updateFields() {
+      // update UI values without rebuilding DOM, preserves focus!
+      Object.keys(this._config).forEach(key => {
+        const el = this.querySelector(`[data-k="${key}"]`);
+        if (!el) return;
+        // update value if needed
+        if ('value' in el && el.value != this._config[key]) {
+          el.value = this._config[key];
+        }
+        // update slider value for ha-slider
+        if (el.tagName === 'HA-SLIDER') {
+          el.setAttribute('value', this._config[key]);
+        }
+        // update label for stops
+        if (key.startsWith('stop_')) {
+          const span = el.parentElement?.querySelector(".lbl");
+          if (span) span.textContent = `${key}: ${this._config[key]}`;
+        }
+      });
+    }
+
+    _initEventHandlers() {
+      this.querySelectorAll("[data-k]").forEach(el => {
+        el.oninput = el.onchange = (ev) => {
+          const key = el.getAttribute("data-k");
+          let val = el.value;
+          if (el.type === "number" || el.tagName === "HA-SLIDER") val = Number(val);
+          this._config = { ...this._config, [key]: val };
+          this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config}}));
+          // update label for stops
+          if(key.startsWith("stop_")){
+            const span = el.parentElement?.querySelector(".lbl");
+            if(span) span.textContent = `${key}: ${this._config[key]}`;
+          }
+        };
+        // voor HA componenten evt ook value-changed
+        el.addEventListener("value-changed", (ev) => {
           const key = el.getAttribute("data-k");
           let val = (ev.detail && ev.detail.value !== undefined) ? ev.detail.value : el.value;
-          if(el.type==="number" || el.tagName==="HA-SLIDER") val = Number(val);
+          if (el.type === "number" || el.tagName === "HA-SLIDER") val = Number(val);
           this._config = { ...this._config, [key]: val };
           this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config}}));
           if(key.startsWith("stop_")){
             const span = el.parentElement?.querySelector(".lbl");
             if(span) span.textContent = `${key}: ${this._config[key]}`;
           }
-        };
-        el.addEventListener("value-changed", handler);
-        el.addEventListener("input", handler);
-        el.addEventListener("change", handler);
+        });
       });
     }
 
-    connectedCallback(){ this._render(); }
+    connectedCallback() {
+      this._render();
+    }
   }
 
   try{
@@ -223,3 +244,4 @@
     console.error("❌ Fout bij registratie donut-card:", e);
   }
 })();
+  
