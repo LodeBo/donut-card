@@ -1,11 +1,11 @@
 /*!
- * 🟢 Donut Card v1.4 (fixes: entity pickers visible/editable, colorpickers persist, start_color no slider, focus-preserve)
+ * 🟢 Donut Card v1.5 (FIX: entity pickers now fully editable in UI)
  */
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.4";
+  const VERSION = "1.5";
 
-  // 🔹 Alias-normalisatie (entity, entities[], primary_entity/secondary_entity)
+  // 🔹 Alias-normalisatie
   function normalizeConfig(cfg = {}) {
     const list = Array.isArray(cfg.entities) ? cfg.entities : null;
     return {
@@ -40,25 +40,17 @@
         entity_primary: "sensor.example_power",
         entity_secondary: "sensor.example_energy",
         min_value: 0, max_value: 100,
-
-        // Labels & text
         top_label_text: "Donut", top_label_weight: 400,
         top_label_color: "#ffffff", text_color_inside: "#ffffff",
         font_scale_ent1: 0.30, font_scale_ent2: 0.30,
         unit_primary: "W", unit_secondary: "kWh",
         decimals_primary: 0, decimals_secondary: 2,
-
-        // Ring
         ring_radius: 65, ring_width: 8, ring_offset_y: 0, label_ring_gap: 17,
-
-        // Style
         background: "var(--card-background-color)",
         border_radius: "12px",
         border: "1px solid rgba(255,255,255,0.2)",
         box_shadow: "none", padding: "0px",
         track_color: "#000000",
-
-        // Color stops: start_color fixed at 0%, others with stops
         start_color: "#ff0000",
         stop_2: 0.30, color_2: "#fb923c",
         stop_3: 0.50, color_3: "#facc15",
@@ -68,7 +60,6 @@
     }
 
     setConfig(config){
-      // 🔹 merge met aliasen
       const aliased = normalizeConfig(config);
       this._config = { ...DonutCard.getStubConfig(), ...config, ...aliased };
     }
@@ -88,7 +79,7 @@
 
     _rgb2hex(r,g,b){
       const p = v => this._clamp(Math.round(v),0,255).toString(16).padStart(2,"0");
-      return `#${p(r)}${p(g)}${p(g)===p(g)?p(g):p(b)}${p(g)}`; // fallback shouldn't happen, kept safe
+      return `#${p(r)}${p(g)}${p(b)}`;
     }
 
     _lerpColor(a,b,t){
@@ -194,44 +185,40 @@
     }
   }
 
-  /* -------- Editor with start_color (no slider), entity pickers and focus-fix -------- */
+  /* -------- EDITOR: entity pickers nu correct geïnitialiseerd -------- */
   class DonutCardEditor extends HTMLElement {
     constructor(){
       super();
       this._config = {};
       this._rendered = false;
-      this._hass = undefined; // voor de pickers
+      this._hass = undefined;
     }
 
-    // geef hass door zodat pickers kunnen werken
     set hass(h) {
       this._hass = h;
-      if (this._rendered) this._setChildHass();
+      // Update pickers immediately when hass changes
+      if (this._rendered) {
+        setTimeout(() => this._initializeEntityPickers(), 0);
+      }
     }
 
     setConfig(config){
-      // merge met aliasen
       const aliased = normalizeConfig(config);
       this._config = { ...DonutCard.getStubConfig(), ...config, ...aliased };
-
-      // If editor already rendered, update fields immediately
       if(this._rendered) this._updateFields();
     }
 
     connectedCallback(){
       if(!this._rendered){
         this._render();
-        this._initEventHandlers();
         this._rendered = true;
+        // Give DOM time to settle, then initialize pickers
+        setTimeout(() => {
+          this._initializeEntityPickers();
+          this._initEventHandlers();
+          this._updateFields();
+        }, 0);
       }
-      // geef hass aan pickers + ensure fields show current config
-      this._setChildHass();
-      this._updateFields();
-    }
-
-    _setChildHass(){
-      // ensure every ha-entity-picker gets hass as property (not attr)
-      this.querySelectorAll("ha-entity-picker").forEach(el => { try{ el.hass = this._hass; }catch(e){} });
     }
 
     _sanitizeColor(color){
@@ -270,27 +257,28 @@
 
       this.innerHTML = `
         <style>
-          ha-textfield, ha-slider, ha-entity-picker{width:100%;}
+          ha-textfield, ha-slider, ha-entity-picker{width:100%;margin-bottom:8px;}
           .segrow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;margin-bottom:8px;}
-          .color input[type=color]{width:42px;height:28px;border:none;padding:0;}
+          .color{display:flex;align-items:center;gap:8px;}
+          .color input[type=color]{width:42px;height:28px;border:none;padding:0;cursor:pointer;}
           .lbl{font-size:12px;opacity:.8;}
-          .editor{padding:8px;}
+          .editor{padding:12px;}
         </style>
         <div class="editor">
-          <ha-entity-picker label="Entity primary" .value="${c.entity_primary}" data-k="entity_primary" allow-custom-entity></ha-entity-picker>
-          <ha-entity-picker label="Entity secondary" .value="${c.entity_secondary}" data-k="entity_secondary" allow-custom-entity></ha-entity-picker>
+          <ha-entity-picker label="Entity primary" data-k="entity_primary" allow-custom-entity></ha-entity-picker>
+          <ha-entity-picker label="Entity secondary" data-k="entity_secondary" allow-custom-entity></ha-entity-picker>
 
           <ha-textfield label="Min" value="${c.min_value}" type="number" data-k="min_value"></ha-textfield>
           <ha-textfield label="Max" value="${c.max_value}" type="number" data-k="max_value"></ha-textfield>
 
-          <ha-textfield label="Unit primary" value="${c.unit_primary}" data-k="unit_primary" type="text"></ha-textfield>
-          <ha-textfield label="Unit secondary" value="${c.unit_secondary}" data-k="unit_secondary" type="text"></ha-textfield>
+          <ha-textfield label="Unit primary" value="${c.unit_primary}" data-k="unit_primary"></ha-textfield>
+          <ha-textfield label="Unit secondary" value="${c.unit_secondary}" data-k="unit_secondary"></ha-textfield>
 
           <ha-textfield label="Decimals primary" value="${c.decimals_primary}" type="number" data-k="decimals_primary"></ha-textfield>
           <ha-textfield label="Decimals secondary" value="${c.decimals_secondary}" type="number" data-k="decimals_secondary"></ha-textfield>
 
-          <ha-textfield label="Top label" value="${c.top_label_text}" data-k="top_label_text" type="text"></ha-textfield>
-          <ha-textfield label="Top label color" value="${c.top_label_color}" data-k="top_label_color" type="text"></ha-textfield>
+          <ha-textfield label="Top label" value="${c.top_label_text}" data-k="top_label_text"></ha-textfield>
+          <ha-textfield label="Top label color" value="${c.top_label_color}" data-k="top_label_color"></ha-textfield>
           <ha-textfield label="Top label weight" value="${c.top_label_weight}" type="number" data-k="top_label_weight"></ha-textfield>
 
           <div class="lbl">Colorstops</div>
@@ -298,71 +286,69 @@
           ${stopRest}
         </div>
       `;
-
-      // after render: pass hass to pickers
-      this._setChildHass();
     }
 
-    _isFocusedOrContains(el){
-      // avoid overwriting when the user is typing or interacting with a nested control
-      const active = document.activeElement;
-      if (!active) return false;
-      try {
-        if (el === active) return true;
-        if (el.contains && el.contains(active)) return true;
-      } catch(e) {}
-      return false;
+    _initializeEntityPickers(){
+      const c = this._config;
+      // Set hass and value on entity pickers AFTER they're in DOM
+      ["entity_primary", "entity_secondary"].forEach(key => {
+        const picker = this.querySelector(`[data-k="${key}"]`);
+        if(picker){
+          // Set hass first (required for picker to work)
+          if(this._hass) picker.hass = this._hass;
+          // Then set value
+          if(c[key]) picker.value = c[key];
+        }
+      });
     }
 
     _updateFields(){
       const c = this._config;
+      const focused = document.activeElement;
 
-      // start_color
+      // Entity pickers
+      ["entity_primary", "entity_secondary"].forEach(key => {
+        const el = this.querySelector(`[data-k="${key}"]`);
+        if(el && el !== focused && !el.contains(focused)){
+          if(this._hass) el.hass = this._hass;
+          if(c[key]) el.value = c[key];
+        }
+      });
+
+      // Start color
       const startEl = this.querySelector('[data-k="start_color"]');
-      if (startEl && !this._isFocusedOrContains(startEl)) {
+      if (startEl && startEl !== focused) {
         startEl.value = this._sanitizeColor(c.start_color);
       }
 
-      // color pickers
+      // Color pickers 2-5
       ["color_2","color_3","color_4","color_5"].forEach(colorKey=>{
         const el = this.querySelector(`[data-k="${colorKey}"]`);
-        if(el && !this._isFocusedOrContains(el)) el.value = this._sanitizeColor(c[colorKey]);
+        if(el && el !== focused) el.value = this._sanitizeColor(c[colorKey]);
       });
 
-      // sliders (stop_2..5)
+      // Sliders
       [2,3,4,5].forEach(i=>{
         const stopKey = "stop_" + i;
         const el = this.querySelector(`[data-k="${stopKey}"]`);
-        if(el && !this._isFocusedOrContains(el)){
-          // set both property and attribute (some HA components read attribute on first render)
+        if(el && el !== focused){
           const pct = Math.round((c[stopKey] || 0) * 100);
-          try { el.value = pct; } catch(e) {}
-          try { el.setAttribute('value', pct); } catch(e) {}
+          el.value = pct;
           const span = el.parentElement?.querySelector(".lbl");
           if(span) span.textContent = `${stopKey}: ${pct}%`;
         }
       });
 
-      // other inputs (entity pickers, textfields)
+      // Other textfields
       [
-        "entity_primary","entity_secondary",
         "min_value","max_value",
         "unit_primary","unit_secondary",
         "decimals_primary","decimals_secondary",
         "top_label_text","top_label_color","top_label_weight"
       ].forEach(key=>{
         const el = this.querySelector(`[data-k="${key}"]`);
-        if(el && !this._isFocusedOrContains(el)) {
-          // for ha-entity-picker, set property 'value' (not attribute)
-          try {
-            if (el.tagName === 'HA-ENTITY-PICKER') {
-              el.value = c[key] === undefined ? "" : c[key];
-            } else {
-              el.value = c[key] === undefined ? "" : c[key];
-            }
-          } catch(e) {
-            // ignore
-          }
+        if(el && el !== focused) {
+          el.value = c[key] === undefined ? "" : c[key];
         }
       });
     }
@@ -373,8 +359,6 @@
         el._handlerSet = true;
 
         const handler = (ev) => this._processChange(el, ev);
-
-        // handle native and ha-* events
         el.addEventListener("input", handler);
         el.addEventListener("change", handler);
         el.addEventListener("value-changed", handler);
@@ -383,27 +367,21 @@
 
     _processChange(el, ev){
       const key = el.getAttribute("data-k");
-      // prefer event detail for ha-* components
       let val = (ev && ev.detail && ev.detail.value !== undefined) ? ev.detail.value : el.value;
 
-      // sliders store percent in UI, convert to 0..1 in config
+      // Convert slider percent to 0-1
       if(el.tagName === "HA-SLIDER" || (el.type === "number" && key.startsWith("stop_"))){
         val = Number(val) / 100;
       }
 
+      // Sanitize colors
       if(key === "start_color" || key.startsWith("color_")){
         val = this._sanitizeColor(val);
-        // ensure the input shows sanitized color immediately (won't steal focus)
-        try { el.value = val; } catch(e){}
+        el.value = val; // Update immediately so user sees correct value
       }
 
-      // update local config
       this._config = { ...this._config, [key]: val };
-
-      // update fields without overwriting focused element
       this._updateFields();
-
-      // notify HA editor wrapper
       this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config } }));
     }
   }
