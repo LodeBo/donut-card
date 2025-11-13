@@ -1,9 +1,10 @@
 /*!
- * 🟢 Donut Card v1.6 (card picker registratie toegevoegd)
+ * 🟢 Donut Card v1.7 (fixed card picker registration)
  */
+
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.6";
+  const VERSION = "1.7";
 
   // 🔹 Alias-normalisatie
   function normalizeConfig(cfg = {}) {
@@ -67,6 +68,11 @@
     set hass(h){
       this._hass = h;
       this.render();
+    }
+
+    // 🔹 Required for card picker
+    getCardSize() {
+      return 4;
     }
 
     _clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
@@ -374,16 +380,7 @@
     }
   }
 
-  // 🔹 Register card in Home Assistant card picker
-  window.customCards = window.customCards || [];
-  window.customCards.push({
-    type: "donut-card",
-    name: "Donut Card",
-    description: "A donut chart card with gradient color stops and dual entities",
-    preview: false,
-    documentationURL: "https://github.com/LodeBo/donut-card"
-  });
-
+  // 🔹 Register custom elements first
   try{
     if(!customElements.get("donut-card")) customElements.define("donut-card", DonutCard);
     if(!customElements.get("donut-card-editor")) customElements.define("donut-card-editor", DonutCardEditor);
@@ -391,4 +388,40 @@
   }catch(e){
     console.error("❌ Failed to register donut-card:", e);
   }
+
+  // 🔹 Register in card picker (with retry logic for HA compatibility)
+  const registerInCardPicker = () => {
+    if (!window.customCards) {
+      window.customCards = [];
+    }
+    
+    const cardInfo = {
+      type: "donut-card",
+      name: "Donut Card",
+      description: "A donut chart card with gradient color stops and dual entities",
+      preview: false,
+      documentationURL: "https://github.com/LodeBo/donut-card"
+    };
+    
+    // Check if already registered
+    const exists = window.customCards.some(card => card.type === "donut-card");
+    
+    if (!exists) {
+      window.customCards.push(cardInfo);
+      console.info(`🟢 ${TAG} registered in card picker (${window.customCards.length} total cards)`);
+    }
+  };
+
+  // Register immediately
+  registerInCardPicker();
+  
+  // Also register on DOMContentLoaded (for slow loads)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', registerInCardPicker);
+  }
+  
+  // And after a delay (for very slow HA instances)
+  setTimeout(registerInCardPicker, 100);
+  setTimeout(registerInCardPicker, 1000);
+
 })();
