@@ -4,9 +4,9 @@
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.0.6";
+  const VERSION = "1.0.7";
 
-  // 🔹 ALIAS-NORMALISATIE (enige toevoeging buiten de classes)
+  // 🔹 Alias-normalisatie (entity, entities[], primary_entity/secondary_entity)
   function normalizeConfig(cfg = {}) {
     const list = Array.isArray(cfg.entities) ? cfg.entities : null;
     return {
@@ -69,7 +69,7 @@
     }
 
     setConfig(config){
-      // 🔹 Alleen alias-merge toegevoegd
+      // 🔹 merge met aliasen
       const aliased = normalizeConfig(config);
       this._config = { ...DonutCard.getStubConfig(), ...config, ...aliased };
     }
@@ -201,10 +201,17 @@
       super();
       this._config = {};
       this._rendered = false;
+      this._hass = undefined; // voor de pickers
+    }
+
+    // 🔹 Geef hass door aan de editor en z’n child entity-pickers
+    set hass(h) {
+      this._hass = h;
+      if (this._rendered) this._setChildHass();
     }
 
     setConfig(config){
-      // 🔹 Alleen alias-merge toegevoegd
+      // 🔹 merge met aliasen
       const aliased = normalizeConfig(config);
       this._config = { ...DonutCard.getStubConfig(), ...config, ...aliased };
       // If editor already rendered, update fields immediately
@@ -217,8 +224,13 @@
         this._initEventHandlers();
         this._rendered = true;
       }
-      // ensure fields show current config
+      // geef hass aan pickers + ensure fields show current config
+      this._setChildHass();
       this._updateFields();
+    }
+
+    _setChildHass(){
+      this.querySelectorAll("ha-entity-picker").forEach(el => { el.hass = this._hass; });
     }
 
     _sanitizeColor(color){
@@ -285,6 +297,9 @@
           ${stopRest}
         </div>
       `;
+
+      // 🔹 na render: hass doorgeven aan pickers
+      this._setChildHass();
     }
 
     _updateFields(){
@@ -323,7 +338,7 @@
       ].forEach(key=>{
         const el = this.querySelector(`[data-k="${key}"]`);
         if(el && el !== focused) {
-          // entity pickers and ha-textfield use property 'value'
+          // entity pickers en ha-textfield gebruiken property 'value'
           el.value = c[key] === undefined ? "" : c[key];
         }
       });
