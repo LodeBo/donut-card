@@ -6,6 +6,26 @@
   const TAG = "donut-card";
   const VERSION = "1.0.5";
 
+  // 🔹 ALIAS-NORMALISATIE (enige toevoeging buiten de classes)
+  function normalizeConfig(cfg = {}) {
+    const list = Array.isArray(cfg.entities) ? cfg.entities : null;
+    return {
+      entity_primary:
+        cfg.entity_primary ??
+        cfg.entity ??
+        cfg.primary_entity ??
+        cfg.primaryEntity ??
+        cfg.primary ??
+        (list?.[0]),
+      entity_secondary:
+        cfg.entity_secondary ??
+        cfg.secondary_entity ??
+        cfg.secondaryEntity ??
+        cfg.secondary ??
+        (list?.[1]),
+    };
+  }
+
   class DonutCard extends HTMLElement {
     constructor(){
       super();
@@ -49,7 +69,9 @@
     }
 
     setConfig(config){
-      this._config = { ...DonutCard.getStubConfig(), ...config };
+      // 🔹 Alleen alias-merge toegevoegd
+      const aliased = normalizeConfig(config);
+      this._config = { ...DonutCard.getStubConfig(), ...config, ...aliased };
     }
 
     set hass(h){
@@ -182,7 +204,9 @@
     }
 
     setConfig(config){
-      this._config = { ...DonutCard.getStubConfig(), ...config };
+      // 🔹 Alleen alias-merge toegevoegd
+      const aliased = normalizeConfig(config);
+      this._config = { ...DonutCard.getStubConfig(), ...config, ...aliased };
       // If editor already rendered, update fields immediately
       if(this._rendered) this._updateFields();
     }
