@@ -387,50 +387,58 @@
     console.error("❌ Failed to register donut-card:", e);
   }
 
-  // 🔹 MULTIPLE card picker registration methods
-  const cardInfo = {
-    type: "donut-card",
-    name: "Donut Card",
-    description: "A donut chart card with gradient color stops and dual entities"
-  };
-
-  // Method 1: window.customCards (most common)
-  const registerMethod1 = () => {
-    if (!window.customCards) window.customCards = [];
-    if (!window.customCards.some(c => c.type === "donut-card")) {
-      window.customCards.push(cardInfo);
-      console.info(`📋 Registered via window.customCards (total: ${window.customCards.length})`);
+  // 🔹 Robust card picker registration
+  const registerForCardPicker = () => {
+    try {
+      if (!window.customCards) window.customCards = [];
+      
+      // Register "custom:donut-card" with preview: true
+      const customType = "custom:donut-card";
+      let customEntry = window.customCards.find(c => c.type === customType);
+      
+      if (!customEntry) {
+        customEntry = {
+          type: customType,
+          name: "Donut Card",
+          description: "A donut chart card with gradient color stops and dual entities",
+          preview: true
+        };
+        window.customCards.push(customEntry);
+        console.info(`✅ Donut Card registered as '${customType}'`);
+      } else if (customEntry.preview !== true) {
+        customEntry.preview = true;
+        console.info(`✅ Donut Card updated preview flag for '${customType}'`);
+      }
+      
+      // Also register legacy "donut-card" entry with preview: true (optional but helps compatibility)
+      const legacyType = "donut-card";
+      let legacyEntry = window.customCards.find(c => c.type === legacyType);
+      
+      if (!legacyEntry) {
+        legacyEntry = {
+          type: legacyType,
+          name: "Donut Card",
+          description: "A donut chart card with gradient color stops and dual entities",
+          preview: true
+        };
+        window.customCards.push(legacyEntry);
+        console.info(`✅ Donut Card registered as '${legacyType}' (legacy)`);
+      } else if (legacyEntry.preview !== true) {
+        legacyEntry.preview = true;
+        console.info(`✅ Donut Card updated preview flag for '${legacyType}'`);
+      }
+      
+      // Dispatch event to trigger Lovelace picker refresh
+      window.dispatchEvent(new Event('ll-rebuild'));
+      
+    } catch (err) {
+      console.warn("⚠️ Donut Card picker registration failed:", err);
     }
   };
 
-  // Method 2: Fire custom event (for some HA versions)
-  const registerMethod2 = () => {
-    window.dispatchEvent(new Event('ll-rebuild'));
-    console.info(`📡 Fired ll-rebuild event`);
-  };
-
-  // Method 3: HA's customPanel registry (if exists)
-  const registerMethod3 = () => {
-    if (window.loadCardHelpers) {
-      console.info(`🔧 Card helpers available`);
-    }
-  };
-
-  // Execute all methods
-  registerMethod1();
-  setTimeout(() => {
-    registerMethod1();
-    registerMethod2();
-    registerMethod3();
-  }, 100);
-  setTimeout(registerMethod1, 1000);
-
-  // Log for debugging
-  console.info(`🔍 Debug info:`, {
-    customCardsExists: !!window.customCards,
-    customCardsLength: window.customCards?.length,
-    donutCardRegistered: window.customCards?.some(c => c.type === "donut-card"),
-    customElementDefined: !!customElements.get("donut-card")
-  });
+  // Execute registration with retries to handle slow loads
+  registerForCardPicker(); // Immediate
+  setTimeout(registerForCardPicker, 100); // After 100ms
+  setTimeout(registerForCardPicker, 1000); // After 1000ms
 
 })();
