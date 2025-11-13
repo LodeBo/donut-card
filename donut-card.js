@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Card v1.8 (card picker registration fixed)
+ * 🟢 Donut Card v1.9 (card picker registration fixed)
  */
 
 (() => {
@@ -413,6 +413,7 @@
   }catch(e){
     console.error("❌ Failed to register donut-card:", e);
   }
+})();
 
 // ---- Robust card picker registration (ensures "custom:donut-card" exists and is previewable) ----
 (function registerDonutCardPicker() {
