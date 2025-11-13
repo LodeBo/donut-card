@@ -1,9 +1,9 @@
 /*!
- * 🟢 Donut Card v1.5 (FIX: entity pickers now fully editable in UI)
+ * 🟢 Donut Card v1.6 (card picker registratie toegevoegd)
  */
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.5";
+  const VERSION = "1.6";
 
   // 🔹 Alias-normalisatie
   function normalizeConfig(cfg = {}) {
@@ -185,7 +185,7 @@
     }
   }
 
-  /* -------- EDITOR: entity pickers nu correct geïnitialiseerd -------- */
+  /* -------- EDITOR -------- */
   class DonutCardEditor extends HTMLElement {
     constructor(){
       super();
@@ -196,7 +196,6 @@
 
     set hass(h) {
       this._hass = h;
-      // Update pickers immediately when hass changes
       if (this._rendered) {
         setTimeout(() => this._initializeEntityPickers(), 0);
       }
@@ -212,7 +211,6 @@
       if(!this._rendered){
         this._render();
         this._rendered = true;
-        // Give DOM time to settle, then initialize pickers
         setTimeout(() => {
           this._initializeEntityPickers();
           this._initEventHandlers();
@@ -290,13 +288,10 @@
 
     _initializeEntityPickers(){
       const c = this._config;
-      // Set hass and value on entity pickers AFTER they're in DOM
       ["entity_primary", "entity_secondary"].forEach(key => {
         const picker = this.querySelector(`[data-k="${key}"]`);
         if(picker){
-          // Set hass first (required for picker to work)
           if(this._hass) picker.hass = this._hass;
-          // Then set value
           if(c[key]) picker.value = c[key];
         }
       });
@@ -306,7 +301,6 @@
       const c = this._config;
       const focused = document.activeElement;
 
-      // Entity pickers
       ["entity_primary", "entity_secondary"].forEach(key => {
         const el = this.querySelector(`[data-k="${key}"]`);
         if(el && el !== focused && !el.contains(focused)){
@@ -315,19 +309,16 @@
         }
       });
 
-      // Start color
       const startEl = this.querySelector('[data-k="start_color"]');
       if (startEl && startEl !== focused) {
         startEl.value = this._sanitizeColor(c.start_color);
       }
 
-      // Color pickers 2-5
       ["color_2","color_3","color_4","color_5"].forEach(colorKey=>{
         const el = this.querySelector(`[data-k="${colorKey}"]`);
         if(el && el !== focused) el.value = this._sanitizeColor(c[colorKey]);
       });
 
-      // Sliders
       [2,3,4,5].forEach(i=>{
         const stopKey = "stop_" + i;
         const el = this.querySelector(`[data-k="${stopKey}"]`);
@@ -339,7 +330,6 @@
         }
       });
 
-      // Other textfields
       [
         "min_value","max_value",
         "unit_primary","unit_secondary",
@@ -369,15 +359,13 @@
       const key = el.getAttribute("data-k");
       let val = (ev && ev.detail && ev.detail.value !== undefined) ? ev.detail.value : el.value;
 
-      // Convert slider percent to 0-1
       if(el.tagName === "HA-SLIDER" || (el.type === "number" && key.startsWith("stop_"))){
         val = Number(val) / 100;
       }
 
-      // Sanitize colors
       if(key === "start_color" || key.startsWith("color_")){
         val = this._sanitizeColor(val);
-        el.value = val; // Update immediately so user sees correct value
+        el.value = val;
       }
 
       this._config = { ...this._config, [key]: val };
@@ -385,6 +373,16 @@
       this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config } }));
     }
   }
+
+  // 🔹 Register card in Home Assistant card picker
+  window.customCards = window.customCards || [];
+  window.customCards.push({
+    type: "donut-card",
+    name: "Donut Card",
+    description: "A donut chart card with gradient color stops and dual entities",
+    preview: false,
+    documentationURL: "https://github.com/LodeBo/donut-card"
+  });
 
   try{
     if(!customElements.get("donut-card")) customElements.define("donut-card", DonutCard);
