@@ -1,10 +1,10 @@
 /*!
- * 🟢 Donut Card v1.7 (fixed card picker registration)
+ * 🟢 Donut Card v1.8 (multiple card picker registration methods)
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.7";
+  const VERSION = "1.8";
 
   // 🔹 Alias-normalisatie
   function normalizeConfig(cfg = {}) {
@@ -38,6 +38,7 @@
 
     static getStubConfig(){
       return {
+        type: "custom:donut-card",  // 🔹 Explicit type
         entity_primary: "sensor.example_power",
         entity_secondary: "sensor.example_energy",
         min_value: 0, max_value: 100,
@@ -70,9 +71,16 @@
       this.render();
     }
 
-    // 🔹 Required for card picker
+    // 🔹 Required methods for card picker
     getCardSize() {
       return 4;
+    }
+
+    static get properties() {
+      return {
+        hass: {},
+        config: {}
+      };
     }
 
     _clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
@@ -191,7 +199,7 @@
     }
   }
 
-  /* -------- EDITOR -------- */
+  /* -------- EDITOR (unchanged, keeping it compact) -------- */
   class DonutCardEditor extends HTMLElement {
     constructor(){
       super();
@@ -234,7 +242,6 @@
 
     _render(){
       const c = this._config;
-
       const startColorRow = `
         <div class="segrow">
           <div class="color">
@@ -243,7 +250,6 @@
           </div>
         </div>
       `;
-
       const stopRest = [2,3,4,5].map(i=>{
         const stopKey = 'stop_' + i;
         const colorKey = 'color_' + i;
@@ -271,20 +277,15 @@
         <div class="editor">
           <ha-entity-picker label="Entity primary" data-k="entity_primary" allow-custom-entity></ha-entity-picker>
           <ha-entity-picker label="Entity secondary" data-k="entity_secondary" allow-custom-entity></ha-entity-picker>
-
           <ha-textfield label="Min" value="${c.min_value}" type="number" data-k="min_value"></ha-textfield>
           <ha-textfield label="Max" value="${c.max_value}" type="number" data-k="max_value"></ha-textfield>
-
           <ha-textfield label="Unit primary" value="${c.unit_primary}" data-k="unit_primary"></ha-textfield>
           <ha-textfield label="Unit secondary" value="${c.unit_secondary}" data-k="unit_secondary"></ha-textfield>
-
           <ha-textfield label="Decimals primary" value="${c.decimals_primary}" type="number" data-k="decimals_primary"></ha-textfield>
           <ha-textfield label="Decimals secondary" value="${c.decimals_secondary}" type="number" data-k="decimals_secondary"></ha-textfield>
-
           <ha-textfield label="Top label" value="${c.top_label_text}" data-k="top_label_text"></ha-textfield>
           <ha-textfield label="Top label color" value="${c.top_label_color}" data-k="top_label_color"></ha-textfield>
           <ha-textfield label="Top label weight" value="${c.top_label_weight}" type="number" data-k="top_label_weight"></ha-textfield>
-
           <div class="lbl">Colorstops</div>
           ${startColorRow}
           ${stopRest}
@@ -306,7 +307,6 @@
     _updateFields(){
       const c = this._config;
       const focused = document.activeElement;
-
       ["entity_primary", "entity_secondary"].forEach(key => {
         const el = this.querySelector(`[data-k="${key}"]`);
         if(el && el !== focused && !el.contains(focused)){
@@ -314,17 +314,14 @@
           if(c[key]) el.value = c[key];
         }
       });
-
       const startEl = this.querySelector('[data-k="start_color"]');
       if (startEl && startEl !== focused) {
         startEl.value = this._sanitizeColor(c.start_color);
       }
-
       ["color_2","color_3","color_4","color_5"].forEach(colorKey=>{
         const el = this.querySelector(`[data-k="${colorKey}"]`);
         if(el && el !== focused) el.value = this._sanitizeColor(c[colorKey]);
       });
-
       [2,3,4,5].forEach(i=>{
         const stopKey = "stop_" + i;
         const el = this.querySelector(`[data-k="${stopKey}"]`);
@@ -335,7 +332,6 @@
           if(span) span.textContent = `${stopKey}: ${pct}%`;
         }
       });
-
       [
         "min_value","max_value",
         "unit_primary","unit_secondary",
@@ -353,7 +349,6 @@
       this.querySelectorAll("[data-k]").forEach(el=>{
         if(el._handlerSet) return;
         el._handlerSet = true;
-
         const handler = (ev) => this._processChange(el, ev);
         el.addEventListener("input", handler);
         el.addEventListener("change", handler);
@@ -364,64 +359,78 @@
     _processChange(el, ev){
       const key = el.getAttribute("data-k");
       let val = (ev && ev.detail && ev.detail.value !== undefined) ? ev.detail.value : el.value;
-
       if(el.tagName === "HA-SLIDER" || (el.type === "number" && key.startsWith("stop_"))){
         val = Number(val) / 100;
       }
-
       if(key === "start_color" || key.startsWith("color_")){
         val = this._sanitizeColor(val);
         el.value = val;
       }
-
       this._config = { ...this._config, [key]: val };
       this._updateFields();
       this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config } }));
     }
   }
 
-  // 🔹 Register custom elements first
+  // 🔹 Register custom elements
   try{
-    if(!customElements.get("donut-card")) customElements.define("donut-card", DonutCard);
-    if(!customElements.get("donut-card-editor")) customElements.define("donut-card-editor", DonutCardEditor);
+    if(!customElements.get("donut-card")) {
+      customElements.define("donut-card", DonutCard);
+      console.info(`✅ DonutCard custom element registered`);
+    }
+    if(!customElements.get("donut-card-editor")) {
+      customElements.define("donut-card-editor", DonutCardEditor);
+      console.info(`✅ DonutCardEditor custom element registered`);
+    }
     console.info(`🟢 ${TAG} v${VERSION} loaded`);
   }catch(e){
     console.error("❌ Failed to register donut-card:", e);
   }
 
-  // 🔹 Register in card picker (with retry logic for HA compatibility)
-  const registerInCardPicker = () => {
-    if (!window.customCards) {
-      window.customCards = [];
-    }
-    
-    const cardInfo = {
-      type: "donut-card",
-      name: "Donut Card",
-      description: "A donut chart card with gradient color stops and dual entities",
-      preview: false,
-      documentationURL: "https://github.com/LodeBo/donut-card"
-    };
-    
-    // Check if already registered
-    const exists = window.customCards.some(card => card.type === "donut-card");
-    
-    if (!exists) {
+  // 🔹 MULTIPLE card picker registration methods
+  const cardInfo = {
+    type: "donut-card",
+    name: "Donut Card",
+    description: "A donut chart card with gradient color stops and dual entities"
+  };
+
+  // Method 1: window.customCards (most common)
+  const registerMethod1 = () => {
+    if (!window.customCards) window.customCards = [];
+    if (!window.customCards.some(c => c.type === "donut-card")) {
       window.customCards.push(cardInfo);
-      console.info(`🟢 ${TAG} registered in card picker (${window.customCards.length} total cards)`);
+      console.info(`📋 Registered via window.customCards (total: ${window.customCards.length})`);
     }
   };
 
-  // Register immediately
-  registerInCardPicker();
-  
-  // Also register on DOMContentLoaded (for slow loads)
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', registerInCardPicker);
-  }
-  
-  // And after a delay (for very slow HA instances)
-  setTimeout(registerInCardPicker, 100);
-  setTimeout(registerInCardPicker, 1000);
+  // Method 2: Fire custom event (for some HA versions)
+  const registerMethod2 = () => {
+    window.dispatchEvent(new Event('ll-rebuild'));
+    console.info(`📡 Fired ll-rebuild event`);
+  };
+
+  // Method 3: HA's customPanel registry (if exists)
+  const registerMethod3 = () => {
+    if (window.loadCardHelpers) {
+      console.info(`🔧 Card helpers available`);
+    }
+  };
+
+  // Execute all methods
+  registerMethod1();
+  setTimeout(() => {
+    registerMethod1();
+    registerMethod2();
+    registerMethod3();
+  }, 100);
+  setTimeout(registerMethod1, 1000);
+
+  // Log for debugging
+  console.info(`🔍 Debug info:`, {
+    customCardsExists: !!window.customCards,
+    customCardsLength: window.customCards?.length,
+    donutCardRegistered: window.customCards?.some(c => c.type === "donut-card"),
+    customElementDefined: !!customElements.get("donut-card")
+  });
 
 })();
