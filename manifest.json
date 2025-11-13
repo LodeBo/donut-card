@@ -1,8 +1,8 @@
 {
   "name": "Donut Card",
   "description": "Themed Donut Card with 2 entities and smooth gradient color stops.",
-  "version": "1.5",
+  "version": "1.6",
   "frontend": true,
-  "authors": ["Jouw Naam"],
+  "authors": ["LodeBo"],
   "keywords": ["card", "lovelace", "custom", "gradient", "donut"]
 }
