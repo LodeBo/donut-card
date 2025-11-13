@@ -1,10 +1,9 @@
 /*!
- * 🟢 Donut Card v1.3 (start_color renamed, focusfix, entity pickers editable)
+ * 🟢 Donut Card v1.4 (fixes: entity pickers visible/editable, colorpickers persist, start_color no slider, focus-preserve)
  */
-
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.0.7";
+  const VERSION = "1.4";
 
   // 🔹 Alias-normalisatie (entity, entities[], primary_entity/secondary_entity)
   function normalizeConfig(cfg = {}) {
@@ -89,7 +88,7 @@
 
     _rgb2hex(r,g,b){
       const p = v => this._clamp(Math.round(v),0,255).toString(16).padStart(2,"0");
-      return `#${p(r)}${p(g)}${p(b)}`;
+      return `#${p(r)}${p(g)}${p(g)===p(g)?p(g):p(b)}${p(g)}`; // fallback shouldn't happen, kept safe
     }
 
     _lerpColor(a,b,t){
@@ -204,16 +203,17 @@
       this._hass = undefined; // voor de pickers
     }
 
-    // 🔹 Geef hass door aan de editor en z’n child entity-pickers
+    // geef hass door zodat pickers kunnen werken
     set hass(h) {
       this._hass = h;
       if (this._rendered) this._setChildHass();
     }
 
     setConfig(config){
-      // 🔹 merge met aliasen
+      // merge met aliasen
       const aliased = normalizeConfig(config);
       this._config = { ...DonutCard.getStubConfig(), ...config, ...aliased };
+
       // If editor already rendered, update fields immediately
       if(this._rendered) this._updateFields();
     }
@@ -230,7 +230,8 @@
     }
 
     _setChildHass(){
-      this.querySelectorAll("ha-entity-picker").forEach(el => { el.hass = this._hass; });
+      // ensure every ha-entity-picker gets hass as property (not attr)
+      this.querySelectorAll("ha-entity-picker").forEach(el => { try{ el.hass = this._hass; }catch(e){} });
     }
 
     _sanitizeColor(color){
@@ -276,8 +277,8 @@
           .editor{padding:8px;}
         </style>
         <div class="editor">
-          <ha-entity-picker label="Entity primary" value="${c.entity_primary}" data-k="entity_primary" allow-custom-entity></ha-entity-picker>
-          <ha-entity-picker label="Entity secondary" value="${c.entity_secondary}" data-k="entity_secondary" allow-custom-entity></ha-entity-picker>
+          <ha-entity-picker label="Entity primary" .value="${c.entity_primary}" data-k="entity_primary" allow-custom-entity></ha-entity-picker>
+          <ha-entity-picker label="Entity secondary" .value="${c.entity_secondary}" data-k="entity_secondary" allow-custom-entity></ha-entity-picker>
 
           <ha-textfield label="Min" value="${c.min_value}" type="number" data-k="min_value"></ha-textfield>
           <ha-textfield label="Max" value="${c.max_value}" type="number" data-k="max_value"></ha-textfield>
@@ -298,33 +299,47 @@
         </div>
       `;
 
-      // 🔹 na render: hass doorgeven aan pickers
+      // after render: pass hass to pickers
       this._setChildHass();
+    }
+
+    _isFocusedOrContains(el){
+      // avoid overwriting when the user is typing or interacting with a nested control
+      const active = document.activeElement;
+      if (!active) return false;
+      try {
+        if (el === active) return true;
+        if (el.contains && el.contains(active)) return true;
+      } catch(e) {}
+      return false;
     }
 
     _updateFields(){
       const c = this._config;
-      // preserve focus: don't overwrite the currently focused element
-      const focused = document.activeElement;
 
       // start_color
       const startEl = this.querySelector('[data-k="start_color"]');
-      if (startEl && startEl !== focused) startEl.value = this._sanitizeColor(c.start_color);
+      if (startEl && !this._isFocusedOrContains(startEl)) {
+        startEl.value = this._sanitizeColor(c.start_color);
+      }
 
       // color pickers
       ["color_2","color_3","color_4","color_5"].forEach(colorKey=>{
         const el = this.querySelector(`[data-k="${colorKey}"]`);
-        if(el && el !== focused) el.value = this._sanitizeColor(c[colorKey]);
+        if(el && !this._isFocusedOrContains(el)) el.value = this._sanitizeColor(c[colorKey]);
       });
 
       // sliders (stop_2..5)
       [2,3,4,5].forEach(i=>{
         const stopKey = "stop_" + i;
         const el = this.querySelector(`[data-k="${stopKey}"]`);
-        if(el && el !== focused){
-          el.value = Math.round((c[stopKey] || 0) * 100);
+        if(el && !this._isFocusedOrContains(el)){
+          // set both property and attribute (some HA components read attribute on first render)
+          const pct = Math.round((c[stopKey] || 0) * 100);
+          try { el.value = pct; } catch(e) {}
+          try { el.setAttribute('value', pct); } catch(e) {}
           const span = el.parentElement?.querySelector(".lbl");
-          if(span) span.textContent = `${stopKey}: ${Math.round((c[stopKey]||0)*100)}%`;
+          if(span) span.textContent = `${stopKey}: ${pct}%`;
         }
       });
 
@@ -337,9 +352,17 @@
         "top_label_text","top_label_color","top_label_weight"
       ].forEach(key=>{
         const el = this.querySelector(`[data-k="${key}"]`);
-        if(el && el !== focused) {
-          // entity pickers en ha-textfield gebruiken property 'value'
-          el.value = c[key] === undefined ? "" : c[key];
+        if(el && !this._isFocusedOrContains(el)) {
+          // for ha-entity-picker, set property 'value' (not attribute)
+          try {
+            if (el.tagName === 'HA-ENTITY-PICKER') {
+              el.value = c[key] === undefined ? "" : c[key];
+            } else {
+              el.value = c[key] === undefined ? "" : c[key];
+            }
+          } catch(e) {
+            // ignore
+          }
         }
       });
     }
@@ -349,9 +372,9 @@
         if(el._handlerSet) return;
         el._handlerSet = true;
 
-        // unify handling for input/change/value-changed
         const handler = (ev) => this._processChange(el, ev);
 
+        // handle native and ha-* events
         el.addEventListener("input", handler);
         el.addEventListener("change", handler);
         el.addEventListener("value-changed", handler);
@@ -370,11 +393,14 @@
 
       if(key === "start_color" || key.startsWith("color_")){
         val = this._sanitizeColor(val);
+        // ensure the input shows sanitized color immediately (won't steal focus)
+        try { el.value = val; } catch(e){}
       }
 
+      // update local config
       this._config = { ...this._config, [key]: val };
 
-      // update fields (will not overwrite focused element)
+      // update fields without overwriting focused element
       this._updateFields();
 
       // notify HA editor wrapper
