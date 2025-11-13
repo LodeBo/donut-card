@@ -4,7 +4,7 @@
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.8";
+  const VERSION = "1.9";
 
   // 🔹 Alias-normalisatie (entity, entities[], primary_entity/secondary_entity)
   function normalizeConfig(cfg = {}) {
@@ -414,52 +414,53 @@
     console.error("❌ Failed to register donut-card:", e);
   }
 
-  // ---- Robust card picker registration (ensures "custom:donut-card" exists and is previewable) ----
-  (function registerDonutCardPicker() {
-    if (typeof window === 'undefined') return;
-    window.customCards = window.customCards || [];
+// ---- Robust card picker registration (ensures "custom:donut-card" exists and is previewable) ----
+(function registerDonutCardPicker() {
+  if (typeof window === 'undefined') return;
+  window.customCards = window.customCards || [];
 
-    const preferred = {
-      type: "custom:donut-card",
-      name: "Donut Card",
-      description: "A donut chart card with gradient color stops and dual entities",
-      preview: true,
-      documentationURL: "https://github.com/LodeBo/donut-card"
-    };
+  const preferred = {
+    type: "custom:donut-card",
+    name: "Donut Card",
+    description: "A donut chart card with gradient color stops and dual entities",
+    preview: true,
+    documentationURL: "https://github.com/LodeBo/donut-card"
+  };
 
-    const legacy = {
-      type: "donut-card",
-      name: "Donut Card (legacy)",
-      description: "Legacy entry for donut-card",
-      preview: true,
-      documentationURL: "https://github.com/LodeBo/donut-card"
-    };
+  const legacy = {
+    type: "donut-card",
+    name: "Donut Card (legacy)",
+    description: "Legacy entry for donut-card",
+    preview: true,
+    documentationURL: "https://github.com/LodeBo/donut-card"
+  };
 
-    function register(entry) {
-      try {
-        const exists = window.customCards.find(c => c.type === entry.type);
-        if (!exists) {
-          window.customCards.push(entry);
-          console.info(`Donut Card registered in card picker as '${entry.type}'`);
-        } else if (exists && exists.preview !== entry.preview) {
-          exists.preview = entry.preview;
-          console.info(`Donut Card entry '${entry.type}' updated (preview=${entry.preview})`);
-        }
-      } catch (e) {
-        console.warn("Could not register card picker entry", entry.type, e);
-      }
-    }
-
+  function register(entry) {
     try {
-      register(preferred);
-      register(legacy);
-      setTimeout(() => { register(preferred); register(legacy); }, 100);
-      setTimeout(() => { register(preferred); register(legacy); }, 1000);
-      try { window.dispatchEvent(new Event('ll-rebuild')); } catch(e) {}
-      setTimeout(() => { try { window.dispatchEvent(new Event('ll-rebuild')); } catch(e) {} }, 300);
+      const exists = window.customCards.find(c => c && c.type === entry.type);
+      if (!exists) {
+        window.customCards.push(entry);
+        console.info(`Donut Card registered in card picker as '${entry.type}'`);
+      } else if (exists && exists.preview !== entry.preview) {
+        exists.preview = entry.preview;
+        console.info(`Donut Card entry '${entry.type}' updated (preview=${entry.preview})`);
+      }
     } catch (e) {
-      console.error("Error during donut-card picker registration", e);
+      console.warn("Could not register card picker entry", entry.type, e);
     }
-  })();
+  }
 
+  // Try immediately and retry a couple of times for slow-loading frontends
+  try {
+    register(preferred);
+    register(legacy);
+    setTimeout(() => { register(preferred); register(legacy); }, 100);
+    setTimeout(() => { register(preferred); register(legacy); }, 1000);
+
+    // trigger a Lovelace rebuild (picker refresh)
+    try { window.dispatchEvent(new Event('ll-rebuild')); } catch(e) {}
+    setTimeout(() => { try { window.dispatchEvent(new Event('ll-rebuild')); } catch(e) {} }, 300);
+  } catch (e) {
+    console.error("Error during donut-card picker registration", e);
+  }
 })();
