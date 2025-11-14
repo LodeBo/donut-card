@@ -1,12 +1,13 @@
 /*!
- * 🟢 Donut Card v1.8.1 (card picker fix: correct type registration)
+ * 🟢 Donut Card v1.8.2
+ * Robust picker registration + editor retries
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.8.1";
+  const VERSION = "1.8.2";
 
-  // 🔹 Alias-normalisatie
+  // Alias-normalization
   function normalizeConfig(cfg = {}) {
     const list = Array.isArray(cfg.entities) ? cfg.entities : null;
     return {
@@ -198,12 +199,14 @@
       this._config = {};
       this._rendered = false;
       this._hass = undefined;
+      this._pickerInitAttempts = 0;
     }
 
     set hass(h) {
       this._hass = h;
       if (this._rendered) {
-        setTimeout(() => this._initializeEntityPickers(), 0);
+        // ensure entity pickers get hass set
+        setTimeout(() => this._initializeEntityPickers(true), 0);
       }
     }
 
@@ -218,7 +221,7 @@
         this._render();
         this._rendered = true;
         setTimeout(() => {
-          this._initializeEntityPickers();
+          this._initializeEntityPickers(true);
           this._initEventHandlers();
           this._updateFields();
         }, 0);
@@ -292,15 +295,56 @@
       `;
     }
 
-    _initializeEntityPickers(){
+    _initializeEntityPickers(force = false){
+      // Robust initialization: try to set hass on pickers, with retries if needed.
+      const attemptLimit = 6; // attempts
+      const attemptDelay = 250; // ms
       const c = this._config;
-      ["entity_primary", "entity_secondary"].forEach(key => {
-        const picker = this.querySelector(`[data-k="${key}"]`);
-        if(picker){
-          if(this._hass) picker.hass = this._hass;
-          if(c[key]) picker.value = c[key];
+      const focused = document.activeElement;
+
+      const tryInit = () => {
+        this._pickerInitAttempts = (this._pickerInitAttempts || 0) + 1;
+
+        ["entity_primary", "entity_secondary"].forEach(key => {
+          const picker = this.querySelector(`[data-k="${key}"]`);
+          if(picker){
+            if(this._hass) picker.hass = this._hass;
+            if(c[key] && (!picker.value || picker.value === "")) picker.value = c[key];
+          }
+        });
+
+        // color inputs
+        const startEl = this.querySelector('[data-k="start_color"]');
+        if (startEl && startEl !== focused) {
+          startEl.value = this._sanitizeColor(c.start_color);
         }
-      });
+        ["color_2","color_3","color_4","color_5"].forEach(colorKey=>{
+          const el = this.querySelector(`[data-k="${colorKey}"]`);
+          if(el && el !== focused) el.value = this._sanitizeColor(c[colorKey]);
+        });
+
+        // slider stops
+        [2,3,4,5].forEach(i=>{
+          const stopKey = "stop_" + i;
+          const el = this.querySelector(`[data-k="${stopKey}"]`);
+          if(el && el !== focused){
+            const pct = Math.round((c[stopKey] || 0) * 100);
+            el.value = pct;
+            const span = el.parentElement?.querySelector(".lbl");
+            if(span) span.textContent = `${stopKey}: ${pct}%`;
+          }
+        });
+
+        // if pickers still empty and attempts left, retry
+        const pickers = Array.from(this.querySelectorAll('ha-entity-picker'));
+        const needRetry = pickers.some(p => !p || !p.hass || p.hass === undefined || p.value === "");
+        if (needRetry && this._pickerInitAttempts < attemptLimit) {
+          setTimeout(tryInit, attemptDelay);
+        }
+      };
+
+      // run immediately
+      tryInit();
     }
 
     _updateFields(){
@@ -380,7 +424,7 @@
     }
   }
 
-  // 🔹 Register custom elements first
+  // Register custom elements first
   try{
     if(!customElements.get("donut-card")) customElements.define("donut-card", DonutCard);
     if(!customElements.get("donut-card-editor")) customElements.define("donut-card-editor", DonutCardEditor);
@@ -389,39 +433,51 @@
     console.error("❌ Failed to register donut-card:", e);
   }
 
-  // 🔹 Register in card picker (FIXED: type must be "donut-card" not "custom:donut-card")
-  const registerInCardPicker = () => {
-    if (!window.customCards) {
-      window.customCards = [];
-    }
-    
+  // Robust card picker registration — ensures the card appears after restarts / slow loads
+  (function registerDonutCardPicker() {
     const cardInfo = {
-      type: "donut-card",  // 🔹 FIXED: was "custom:donut-card" - HA adds "custom:" prefix automatically
+      type: "donut-card", // HA expects the bare tag name
       name: "Donut Card",
       description: "A donut chart card with gradient color stops and dual entities",
       preview: true,
       documentationURL: "https://github.com/LodeBo/donut-card"
     };
-    
-    // Check if already registered
-    const exists = window.customCards.some(card => card.type === "donut-card");
-    
-    if (!exists) {
-      window.customCards.push(cardInfo);
-      console.info(`🟢 ${TAG} registered in card picker (${window.customCards.length} total cards)`);
-    }
-  };
 
-  // Register immediately
-  registerInCardPicker();
-  
-  // Also register on DOMContentLoaded (for slow loads)
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', registerInCardPicker);
-  }
-  
-  // And after a delay (for very slow HA instances)
-  setTimeout(registerInCardPicker, 100);
-  setTimeout(registerInCardPicker, 1000);
+    function ensureRegistered() {
+      try {
+        window.customCards = window.customCards || [];
+        const exists = window.customCards.some(c => c.type === cardInfo.type);
+        if (!exists) {
+          window.customCards.push(cardInfo);
+          console.info('🟢 donut-card registered in window.customCards');
+        }
+      } catch (e) {
+        console.warn('donut-card: failed to register in window.customCards', e);
+      }
+    }
+
+    // Register immediately
+    ensureRegistered();
+
+    // Register on common lifecycle events (covers early/late loads and HA restarts)
+    ['DOMContentLoaded', 'load'].forEach(ev => {
+      window.addEventListener(ev, ensureRegistered, { once: true });
+    });
+
+    // Retry after short delays (handles slow network / HACS serving)
+    [100, 500, 1000, 3000, 6000].forEach(ms => setTimeout(ensureRegistered, ms));
+
+    // Listen for HA-specific rebuild events
+    window.addEventListener('ll-rebuild', ensureRegistered);
+    window.addEventListener('config-changed', ensureRegistered);
+
+    // Ensure registration after the custom element is defined
+    if (typeof customElements !== 'undefined' && customElements.whenDefined) {
+      customElements.whenDefined('donut-card').then(() => {
+        ensureRegistered();
+        console.info('donut-card: custom element defined, ensured picker registration');
+      }).catch(()=>{});
+    }
+  })();
 
 })();
