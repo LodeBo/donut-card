@@ -5,7 +5,7 @@
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.9";
+  const VERSION = "1.10";
 
   // Alias-normalization
   function normalizeConfig(cfg = {}) {
