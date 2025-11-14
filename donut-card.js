@@ -1,10 +1,10 @@
 /*!
- * 🟢 Donut Card v1.8 (card picker fix: custom:donut-card with preview:true)
+ * 🟢 Donut Card v1.8.1 (card picker fix: correct type registration)
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.11";
+  const VERSION = "1.8.1";
 
   // 🔹 Alias-normalisatie
   function normalizeConfig(cfg = {}) {
@@ -38,7 +38,7 @@
 
     static getStubConfig(){
       return {
-        type: "custom:donut-card",  // 🔹 Added explicit type
+        type: "custom:donut-card",
         entity_primary: "sensor.example_power",
         entity_secondary: "sensor.example_energy",
         min_value: 0, max_value: 100,
@@ -71,7 +71,6 @@
       this.render();
     }
 
-    // 🔹 Required for card picker
     getCardSize() {
       return 4;
     }
@@ -390,22 +389,22 @@
     console.error("❌ Failed to register donut-card:", e);
   }
 
-  // 🔹 Register in card picker (FIXED: custom:donut-card with preview:true)
+  // 🔹 Register in card picker (FIXED: type must be "donut-card" not "custom:donut-card")
   const registerInCardPicker = () => {
     if (!window.customCards) {
       window.customCards = [];
     }
     
     const cardInfo = {
-      type: "custom:donut-card",  // 🔹 FIXED: was "donut-card"
+      type: "donut-card",  // 🔹 FIXED: was "custom:donut-card" - HA adds "custom:" prefix automatically
       name: "Donut Card",
       description: "A donut chart card with gradient color stops and dual entities",
-      preview: true,  // 🔹 FIXED: was false
+      preview: true,
       documentationURL: "https://github.com/LodeBo/donut-card"
     };
     
     // Check if already registered
-    const exists = window.customCards.some(card => card.type === "custom:donut-card");
+    const exists = window.customCards.some(card => card.type === "donut-card");
     
     if (!exists) {
       window.customCards.push(cardInfo);
