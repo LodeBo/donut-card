@@ -1,11 +1,11 @@
 /*!
- * 🟢 Donut Card v1.8.3
- * Robust picker registration + editor retries
+ * 🟢 Donut Card v1.8.4
+ * Further hardening: defensive rendering/editor + periodic picker ensure
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.8.3";
+  const VERSION = "1.8.4";
 
   // Normalize alias config keys
   function normalizeConfig(cfg = {}) {
@@ -85,7 +85,12 @@
 
     set hass(h) {
       this._hass = h;
-      this.render();
+      try {
+        this.render();
+      } catch (e) {
+        // defensive: ensure errors in render don't break the page
+        console.error("donut-card: render failed", e);
+      }
     }
 
     getCardSize() {
@@ -145,72 +150,77 @@
     }
 
     render() {
-      if (!this._config || !this._hass) return;
-      const c = this._config, h = this._hass;
-      const ent1 = h.states?.[c.entity_primary];
-      const ent2 = c.entity_secondary ? h.states?.[c.entity_secondary] : null;
-      if (!ent1) return;
+      try {
+        if (!this._config || !this._hass) return;
+        const c = this._config, h = this._hass;
+        const ent1 = h.states?.[c.entity_primary];
+        const ent2 = c.entity_secondary ? h.states?.[c.entity_secondary] : null;
+        if (!ent1) return;
 
-      const val1 = Number(String(ent1.state).replace(",", ".")) || 0;
-      const val2 = ent2 ? Number(String(ent2.state).replace(",", ".")) : null;
-      const min = Number(c.min_value ?? 0), max = Number(c.max_value ?? 100);
-      const frac = this._clamp((val1 - min) / Math.max(max - min, 1e-9), 0, 1);
+        const val1 = Number(String(ent1.state).replace(",", ".")) || 0;
+        const val2 = ent2 ? Number(String(ent2.state).replace(",", ".")) : null;
+        const min = Number(c.min_value ?? 0), max = Number(c.max_value ?? 100);
+        const frac = this._clamp((val1 - min) / Math.max(max - min, 1e-9), 0, 1);
 
-      const R = Number(c.ring_radius), W = Number(c.ring_width);
-      const cx = 130, cy = 130 + Number(c.ring_offset_y || 0);
-      const rot = -90, segs = 140;
-      const span = frac * 360, stops = this._buildStops(c);
+        const R = Number(c.ring_radius), W = Number(c.ring_width);
+        const cx = 130, cy = 130 + Number(c.ring_offset_y || 0);
+        const rot = -90, segs = 140;
+        const span = frac * 360, stops = this._buildStops(c);
 
-      const arcSeg = (a0, a1, sw, color) => {
-        const toRad = (d) => (d * Math.PI) / 180;
-        const x0 = cx + R * Math.cos(toRad(a0)), y0 = cy + R * Math.sin(toRad(a0));
-        const x1 = cx + R * Math.cos(toRad(a1)), y1 = cy + R * Math.sin(toRad(a1));
-        const large = (a1 - a0) > 180 ? 1 : 0;
-        return `<path d="M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" />`;
-      };
+        const arcSeg = (a0, a1, sw, color) => {
+          const toRad = (d) => (d * Math.PI) / 180;
+          const x0 = cx + R * Math.cos(toRad(a0)), y0 = cy + R * Math.sin(toRad(a0));
+          const x1 = cx + R * Math.cos(toRad(a1)), y1 = cy + R * Math.sin(toRad(a1));
+          const large = (a1 - a0) > 180 ? 1 : 0;
+          return `<path d="M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" />`;
+        };
 
-      let svg = `<svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">`;
-      // Track
-      svg += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${c.track_color}" stroke-width="${W}" opacity="0.25"/>`;
+        let svg = `<svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">`;
+        // Track
+        svg += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${c.track_color}" stroke-width="${W}" opacity="0.25"/>`;
 
-      const start = rot, end = rot + span;
-      for (let i = 0; i < segs; i++) {
-        const a0 = start + (i / segs) * span, a1 = start + ((i + 1) / segs) * span;
-        if (a1 > end) break;
-        const mid = (a0 + a1) / 2, t = (mid - rot) / 360;
-        svg += arcSeg(a0, a1, W, this._colorAtStops(stops, t));
+        const start = rot, end = rot + span;
+        for (let i = 0; i < segs; i++) {
+          const a0 = start + (i / segs) * span, a1 = start + ((i + 1) / segs) * span;
+          if (a1 > end) break;
+          const mid = (a0 + a1) / 2, t = (mid - rot) / 360;
+          svg += arcSeg(a0, a1, W, this._colorAtStops(stops, t));
+        }
+
+        if ((c.top_label_text ?? "").trim() !== "") {
+          const fs_top = R * 0.35;
+          const y_top = (cy - R) - (W * 0.8) - fs_top * 0.25 - Number(c.label_ring_gap || 0);
+          svg += `<text x="${cx}" y="${y_top}" font-size="${fs_top}" font-weight="${c.top_label_weight}" fill="${c.top_label_color}" text-anchor="middle" dominant-baseline="middle">${c.top_label_text}</text>`;
+        }
+
+        const textColor = c.text_color_inside || "#ffffff";
+        const fs1 = R * (c.font_scale_ent1 ?? 0.30);
+        const fs2 = R * (c.font_scale_ent2 ?? 0.30);
+        const y1 = cy - R * 0.05, y2 = cy + R * 0.35;
+
+        svg += `<text x="${cx}" y="${y1}" text-anchor="middle" font-size="${fs1}" font-weight="400" fill="${textColor}">${val1.toFixed(c.decimals_primary)} ${c.unit_primary || ""}</text>`;
+        if (ent2) {
+          svg += `<text x="${cx}" y="${y2}" text-anchor="middle" font-size="${fs2}" font-weight="300" fill="${textColor}">${val2.toFixed(c.decimals_secondary)} ${c.unit_secondary || ""}</text>`;
+        }
+        svg += `</svg>`;
+
+        const style = `
+          <style>
+            :host{display:block;width:100%;height:100%;}
+            ha-card{
+              background:${c.background};border-radius:${c.border_radius};
+              border:${c.border};box-shadow:${c.box_shadow};padding:${c.padding};
+              display:flex;align-items:center;justify-content:center;width:100%;height:100%;
+            }
+            .wrap{width:100%;height:100%;max-width:520px;display:flex;align-items:center;justify-content:center;position:relative;}
+            svg{width:100%;height:auto;display:block;} text{user-select:none;}
+          </style>`;
+
+        this.shadowRoot.innerHTML = `${style}<ha-card><div class="wrap">${svg}</div></ha-card>`;
+      } catch (e) {
+        // Defensive: log but don't throw
+        console.error("donut-card: render() exception", e);
       }
-
-      if ((c.top_label_text ?? "").trim() !== "") {
-        const fs_top = R * 0.35;
-        const y_top = (cy - R) - (W * 0.8) - fs_top * 0.25 - Number(c.label_ring_gap || 0);
-        svg += `<text x="${cx}" y="${y_top}" font-size="${fs_top}" font-weight="${c.top_label_weight}" fill="${c.top_label_color}" text-anchor="middle" dominant-baseline="middle">${c.top_label_text}</text>`;
-      }
-
-      const textColor = c.text_color_inside || "#ffffff";
-      const fs1 = R * (c.font_scale_ent1 ?? 0.30);
-      const fs2 = R * (c.font_scale_ent2 ?? 0.30);
-      const y1 = cy - R * 0.05, y2 = cy + R * 0.35;
-
-      svg += `<text x="${cx}" y="${y1}" text-anchor="middle" font-size="${fs1}" font-weight="400" fill="${textColor}">${val1.toFixed(c.decimals_primary)} ${c.unit_primary || ""}</text>`;
-      if (ent2) {
-        svg += `<text x="${cx}" y="${y2}" text-anchor="middle" font-size="${fs2}" font-weight="300" fill="${textColor}">${val2.toFixed(c.decimals_secondary)} ${c.unit_secondary || ""}</text>`;
-      }
-      svg += `</svg>`;
-
-      const style = `
-        <style>
-          :host{display:block;width:100%;height:100%;}
-          ha-card{
-            background:${c.background};border-radius:${c.border_radius};
-            border:${c.border};box-shadow:${c.box_shadow};padding:${c.padding};
-            display:flex;align-items:center;justify-content:center;width:100%;height:100%;
-          }
-          .wrap{width:100%;height:100%;max-width:520px;display:flex;align-items:center;justify-content:center;position:relative;}
-          svg{width:100%;height:auto;display:block;} text{user-select:none;}
-        </style>`;
-
-      this.shadowRoot.innerHTML = `${style}<ha-card><div class="wrap">${svg}</div></ha-card>`;
     }
   }
 
@@ -239,13 +249,17 @@
 
     connectedCallback() {
       if (!this._rendered) {
-        this._render();
-        this._rendered = true;
-        setTimeout(() => {
-          this._initializeEntityPickers(true);
-          this._initEventHandlers();
-          this._updateFields();
-        }, 0);
+        try {
+          this._render();
+          this._rendered = true;
+          setTimeout(() => {
+            this._initializeEntityPickers(true);
+            this._initEventHandlers();
+            this._updateFields();
+          }, 0);
+        } catch (e) {
+          console.error("donut-card-editor: render failed", e);
+        }
       }
     }
 
@@ -318,7 +332,7 @@
 
     _initializeEntityPickers(force = false) {
       // Robust initialization: try to set hass on pickers, with retries if needed.
-      const attemptLimit = 6;
+      const attemptLimit = 8;
       const attemptDelay = 250;
       const c = this._config;
       const focused = document.activeElement;
@@ -329,8 +343,12 @@
         ["entity_primary", "entity_secondary"].forEach(key => {
           const picker = this.querySelector(`[data-k="${key}"]`);
           if (picker) {
-            if (this._hass) picker.hass = this._hass;
-            if (c[key] && (!picker.value || picker.value === "")) picker.value = c[key];
+            try {
+              if (this._hass) picker.hass = this._hass;
+              if (c[key] && (!picker.value || picker.value === "")) picker.value = c[key];
+            } catch (e) {
+              // ignore assignment errors
+            }
           }
         });
 
@@ -340,7 +358,7 @@
         }
         ["color_2", "color_3", "color_4", "color_5"].forEach(colorKey => {
           const el = this.querySelector(`[data-k="${colorKey}"]`);
-          if (el && el !== focused) el.value = this._sanitizeColor(c[colorKey]);
+          if (el && el !== focused) try { el.value = this._sanitizeColor(c[colorKey]); } catch(e){}
         });
 
         [2, 3, 4, 5].forEach(i => {
@@ -348,7 +366,7 @@
           const el = this.querySelector(`[data-k="${stopKey}"]`);
           if (el && el !== focused) {
             const pct = Math.round((c[stopKey] || 0) * 100);
-            el.value = pct;
+            try { el.value = pct; } catch(e){}
             const span = el.parentElement?.querySelector(".lbl");
             if (span) span.textContent = `${stopKey}: ${pct}%`;
           }
@@ -371,7 +389,7 @@
       ["entity_primary", "entity_secondary"].forEach(key => {
         const el = this.querySelector(`[data-k="${key}"]`);
         if (el && el !== focused && !el.contains(focused)) {
-          if (this._hass) el.hass = this._hass;
+          try { if (this._hass) el.hass = this._hass; } catch (e) {}
           if (c[key]) el.value = c[key];
         }
       });
@@ -460,7 +478,8 @@
 
     function ensureRegistered() {
       try {
-        window.customCards = window.customCards || [];
+        // make sure window.customCards is an array and clean falsey entries
+        window.customCards = Array.isArray(window.customCards) ? window.customCards.filter(Boolean) : [];
         const exists = window.customCards.some(c => c.type === cardInfo.type);
         if (!exists) {
           window.customCards.push(cardInfo);
@@ -481,6 +500,11 @@
 
     // Retry after short delays (handles slow network / HACS serving)
     [100, 500, 1000, 3000, 6000].forEach(ms => setTimeout(ensureRegistered, ms));
+
+    // Also periodically ensure registration in case of odd page lifecycle interactions
+    const periodic = setInterval(ensureRegistered, 30000); // every 30s
+    // stop periodic after 10 minutes to avoid unnecessary churn
+    setTimeout(() => clearInterval(periodic), 10 * 60 * 1000);
 
     // Listen for HA-specific rebuild events
     window.addEventListener("ll-rebuild", ensureRegistered);
