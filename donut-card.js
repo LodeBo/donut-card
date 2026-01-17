@@ -1,11 +1,11 @@
 /*!
- * 🟢 Donut Card v1.8.4
- * Further hardening: defensive rendering/editor + periodic picker ensure
+ * 🟢 Donut Card v1.8.5 (Optimized)
+ * Includes performance fix for render loop & defensive loading
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.8.4";
+  const VERSION = "1.8.5";
 
   // Normalize alias config keys
   function normalizeConfig(cfg = {}) {
@@ -33,6 +33,7 @@
       this.attachShadow({ mode: "open" });
       this._hass = null;
       this._config = null;
+      this._lastRenderedConfig = null; // Om config wijzigingen te detecteren
     }
 
     static getConfigElement() {
@@ -81,17 +82,46 @@
     setConfig(config) {
       const aliased = normalizeConfig(config);
       this._config = { ...DonutCard.getStubConfig(), ...config, ...aliased };
-    }
-
-    set hass(h) {
-      this._hass = h;
-      try {
-        this.render();
-      } catch (e) {
-        // defensive: ensure errors in render don't break the page
-        console.error("donut-card: render failed", e);
+      
+      // Als we al hass hebben, render direct om preview in editor vlot te maken
+      if (this._hass) {
+          this.render();
       }
     }
+
+    // --- PERFORMANCE FIX START ---
+    set hass(h) {
+      const oldHass = this._hass;
+      this._hass = h;
+
+      if (this._shouldUpdate(oldHass, h)) {
+        try {
+          this.render();
+        } catch (e) {
+          console.error("donut-card: render failed", e);
+        }
+      }
+    }
+
+    _shouldUpdate(oldHass, newHass) {
+      // 1. Als dit de eerste keer is
+      if (!oldHass || !this._config) return true;
+
+      // 2. Als de config is gewijzigd (vergeleken met vorige render)
+      if (this._config !== this._lastRenderedConfig) return true;
+
+      // 3. Check primaire entiteit
+      const ent1 = this._config.entity_primary;
+      if (ent1 && oldHass.states[ent1] !== newHass.states[ent1]) return true;
+
+      // 4. Check secundaire entiteit
+      const ent2 = this._config.entity_secondary;
+      if (ent2 && oldHass.states[ent2] !== newHass.states[ent2]) return true;
+
+      // Geen relevante wijzigingen, niet renderen (bespaart CPU)
+      return false;
+    }
+    // --- PERFORMANCE FIX END ---
 
     getCardSize() {
       return 4;
@@ -152,10 +182,17 @@
     render() {
       try {
         if (!this._config || !this._hass) return;
+        this._lastRenderedConfig = this._config; // Update ref voor shouldUpdate
+
         const c = this._config, h = this._hass;
         const ent1 = h.states?.[c.entity_primary];
         const ent2 = c.entity_secondary ? h.states?.[c.entity_secondary] : null;
-        if (!ent1) return;
+        
+        // Als ent1 niet bestaat, toon een placeholder of niets, maar crash niet
+        if (!ent1) {
+            this.shadowRoot.innerHTML = `<ha-card style="padding:16px;color:red;">Entity not found: ${c.entity_primary}</ha-card>`;
+            return;
+        }
 
         const val1 = Number(String(ent1.state).replace(",", ".")) || 0;
         const val2 = ent2 ? Number(String(ent2.state).replace(",", ".")) : null;
@@ -331,7 +368,6 @@
     }
 
     _initializeEntityPickers(force = false) {
-      // Robust initialization: try to set hass on pickers, with retries if needed.
       const attemptLimit = 8;
       const attemptDelay = 250;
       const c = this._config;
@@ -346,9 +382,7 @@
             try {
               if (this._hass) picker.hass = this._hass;
               if (c[key] && (!picker.value || picker.value === "")) picker.value = c[key];
-            } catch (e) {
-              // ignore assignment errors
-            }
+            } catch (e) {}
           }
         });
 
@@ -466,7 +500,7 @@
     console.error("❌ Failed to register donut-card:", e);
   }
 
-  // Robust card picker registration — ensures the card appears after restarts / slow loads
+  // Robust card picker registration
   (function registerDonutCardPicker() {
     const cardInfo = {
       type: "donut-card",
@@ -478,7 +512,6 @@
 
     function ensureRegistered() {
       try {
-        // make sure window.customCards is an array and clean falsey entries
         window.customCards = Array.isArray(window.customCards) ? window.customCards.filter(Boolean) : [];
         const exists = window.customCards.some(c => c.type === cardInfo.type);
         if (!exists) {
@@ -490,27 +523,20 @@
       }
     }
 
-    // Register immediately
     ensureRegistered();
 
-    // Register on common lifecycle events (covers early/late loads and HA restarts)
     ["DOMContentLoaded", "load"].forEach(ev => {
       window.addEventListener(ev, ensureRegistered, { once: true });
     });
 
-    // Retry after short delays (handles slow network / HACS serving)
     [100, 500, 1000, 3000, 6000].forEach(ms => setTimeout(ensureRegistered, ms));
 
-    // Also periodically ensure registration in case of odd page lifecycle interactions
-    const periodic = setInterval(ensureRegistered, 30000); // every 30s
-    // stop periodic after 10 minutes to avoid unnecessary churn
+    const periodic = setInterval(ensureRegistered, 30000);
     setTimeout(() => clearInterval(periodic), 10 * 60 * 1000);
 
-    // Listen for HA-specific rebuild events
     window.addEventListener("ll-rebuild", ensureRegistered);
     window.addEventListener("config-changed", ensureRegistered);
 
-    // Ensure registration after the custom element is defined
     if (typeof customElements !== "undefined" && customElements.whenDefined) {
       customElements.whenDefined("donut-card").then(() => {
         ensureRegistered();
