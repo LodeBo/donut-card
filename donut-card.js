@@ -5,7 +5,7 @@
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "1.8.5";
+  const VERSION = "3.0.0";
 
   // Normalize alias config keys
   function normalizeConfig(cfg = {}) {
