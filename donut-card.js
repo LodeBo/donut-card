@@ -138,7 +138,7 @@
 
       // Hardcoded Fonts & Positions
       const fs_top = R * 0.42;
-      const y_top = (cy - R) - 15;
+      const y_top = (cy - R) - 30;
       const fs1 = R * 0.30;
       const fs2 = R * 0.30;
       const y1 = cy - R * 0.05, y2 = cy + R * 0.35;
