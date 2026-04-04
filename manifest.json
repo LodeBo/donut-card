@@ -2,7 +2,7 @@
   "domain": "donut-card",
   "name": "Donut Card",
   "author": "Lodebo & Gemini",
-  "version": "5.0.1",
+  "version": "5.0.2",
   "documentation": "https://github.com/lodebo/battery-donut-card",
   "is_helper": false,
   "render_native": true,
