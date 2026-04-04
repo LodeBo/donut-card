@@ -117,15 +117,15 @@
       const titleText = c.top_label_text || "";
       
       // 1. Titel (Boven)
-      let topFontSize = 28;         
-      const topFontWeight = "400";  
+      let topFontSize = 34;         
+      const topFontWeight = "300";  
 
       // 2. Hoofdwaarde (Midden)
-      const val1FontSize = "26";    
-      const val1FontWeight = "400"; 
+      const val1FontSize = "24";    
+      const val1FontWeight = "300"; 
 
       // 3. Subwaarde (Onder)
-      const val2FontSize = "20";    
+      const val2FontSize = "24";    
       const val2FontWeight = "300"; 
 
       // ===================================================================
