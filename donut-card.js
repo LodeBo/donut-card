@@ -1,11 +1,11 @@
 /*!
- * 🟢 Donut Card v4.0.0 (Flawless Ring & Clean UI)
+ * 🟢 Donut Card v4.1.0 (Flawless Ring & Clean UI)
  * Optimized SVG rendering, smooth CSS animations, and a beautifully organized UI editor.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "4.0.0";
+  const VERSION = "4.1.0";
 
   function normalizeConfig(cfg = {}) {
     const list = Array.isArray(cfg.entities) ? cfg.entities : null;
