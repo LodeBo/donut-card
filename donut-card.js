@@ -1,12 +1,12 @@
 /*!
- * 🟢 Donut Card v11.0.0 (The Editor Persistence Update)
+ * 🟢 Donut Card v12.0.0 (The Editor Persistence Update)
  * - FIX: Editor onthoudt nu de opgeslagen kleuren en schuifjes perfect.
  * - FIX: CSS is volledig herschreven om de strakke "vierkante" layout uit de foto na te bootsen.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "11.0.0";
+  const VERSION = "12.0.0";
 
   class DonutCard extends HTMLElement {
     constructor() {
