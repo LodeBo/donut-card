@@ -1,11 +1,11 @@
 /*!
- * 🟢 Donut Card v5.0.3 (Editor Restored & Auto Text Color)
+ * 🟢 Donut Card v6.0.0 (Editor Restored & Auto Text Color)
  * Kleur-opties terug in de editor gezet en wit-op-wit tekst probleem opgelost.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "5.0.3";
+  const VERSION = "6.0.0";
 
   class DonutCard extends HTMLElement {
     constructor() {
