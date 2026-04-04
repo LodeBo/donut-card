@@ -1,12 +1,13 @@
 /*!
- * 🟢 Donut Card v8.0.0 (The Final Editor Crash Fix)
- * - Verhelpt de "Cannot read properties of undefined (reading 'start_color')" crash in de visuele editor.
- * - Inclusief alle Batterij-kaart fixes, eenheden en de custom colorpicker.
+ * 🟢 Donut Card v9.0.0 (The Visual Polish)
+ * - Lettergroottes 100% gematcht met de Batterij-kaart.
+ * - Colorpicker UI volledig vernieuwd (ronde swatches, HA-styling).
+ * - Rest van de logica (v6.0.1) onaangetast gebleven.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "8.0.0";
+  const VERSION = "9.0.0";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -111,9 +112,10 @@
       }
 
       const titleText = c.top_label_text || "";
-      let topFontSize = 24; 
-      if (titleText.length > 12) topFontSize = 24 * (12 / titleText.length);
-      topFontSize = Math.max(topFontSize, 12); 
+      // FIX: Basisgrootte flink omhoog naar 28 (was 24) om te matchen met Batterij-kaart.
+      let topFontSize = 28; 
+      if (titleText.length > 12) topFontSize = 28 * (12 / titleText.length);
+      topFontSize = Math.max(topFontSize, 14); 
 
       this.shadowRoot.innerHTML = `
         <style>
@@ -142,8 +144,8 @@
               </g>
               
               <text x="${cx}" y="${cy - R - 32}" font-size="${topFontSize}" font-weight="400" text-anchor="middle" dominant-baseline="middle">${titleText}</text>
-              <text id="val1" x="${cx}" y="${cy - 4}" font-size="22" text-anchor="middle" font-weight="400">--</text>
-              <text id="val2" x="${cx}" y="${cy + 24}" font-size="22" text-anchor="middle" font-weight="300"></text>
+              <text id="val1" x="${cx}" y="${cy - 4}" font-size="26" text-anchor="middle" font-weight="400">--</text>
+              <text id="val2" x="${cx}" y="${cy + 24}" font-size="20" text-anchor="middle" font-weight="300"></text>
             </svg>
           </div>
         </ha-card>
@@ -172,7 +174,7 @@
         const val2 = Number(h.states[c.entity_secondary].state.replace(",", ".")) || 0;
         this._elements.v2.textContent = `${val2.toFixed(c.decimals_secondary)} ${c.unit_secondary || ""}`;
         this._elements.v2.style.display = "block";
-        this._elements.v1.setAttribute("y", "126");
+        this._elements.v1.setAttribute("y", "124");
       } else {
         this._elements.v2.style.display = "none";
         this._elements.v1.setAttribute("y", "138");
@@ -200,7 +202,6 @@
       wrapper.style.flexDirection = "column";
       wrapper.style.gap = "24px";
 
-      // CRUCIALE FIX: Fallback naar leeg object als _config er nog niet is
       const c = this._config || {};
 
       const f = document.createElement("ha-form");
@@ -219,21 +220,31 @@
         this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
       });
 
+      // FIX: Compleet nieuwe, strakke styling voor de Colorpicker met ronde swatches
       const cp = document.createElement("div");
       cp.innerHTML = `
-        <div style="background: var(--secondary-background-color, rgba(120,120,120,0.1)); padding: 16px; border-radius: 8px;">
-          <div style="font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-            🌈 Kleuren Verloop
-          </div>
-          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-            <input type="color" data-key="start_color" value="${c.start_color || '#0000ff'}" style="width:36px; height:36px; border:none; cursor:pointer; padding:0; border-radius: 4px;">
-            <span style="font-size: 14px;">Start (0%)</span>
+        <style>
+          .cp-panel { background: var(--secondary-background-color, rgba(120,120,120,0.05)); padding: 16px; border-radius: 12px; border: 1px solid var(--divider-color, rgba(200,200,200,0.2)); }
+          .cp-title { font-weight: 500; margin-bottom: 16px; display: flex; align-items: center; font-size: 16px; color: var(--primary-text-color); }
+          .cp-row { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+          .cp-color { width: 32px; height: 32px; border: 1px solid var(--divider-color, rgba(150,150,150,0.4)); border-radius: 50%; cursor: pointer; padding: 0; background: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .cp-color::-webkit-color-swatch-wrapper { padding: 0; }
+          .cp-color::-webkit-color-swatch { border: none; border-radius: 50%; }
+          .cp-color::-moz-color-swatch { border: none; border-radius: 50%; }
+          .cp-slider { flex-grow: 1; accent-color: var(--primary-color, #03a9f4); cursor: pointer; }
+          .cp-label { font-size: 13px; width: 36px; text-align: right; color: var(--primary-text-color); font-family: var(--paper-font-body1_-_font-family, sans-serif); }
+        </style>
+        <div class="cp-panel">
+          <div class="cp-title">🌈 Kleuren Verloop</div>
+          <div class="cp-row" style="margin-bottom: 20px;">
+            <input type="color" class="cp-color" data-key="start_color" value="${c.start_color || '#0000ff'}">
+            <span class="cp-label" style="width: auto;">Start (0%)</span>
           </div>
           ${[2,3,4,5].map(i => `
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-              <input type="range" data-key="stop_${i}" min="1" max="99" value="${Math.round((c['stop_'+i]||0)*100)}" style="flex-grow: 1; cursor: ew-resize;">
-              <input type="color" data-key="color_${i}" value="${c['color_'+i] || '#ffffff'}" style="width:36px; height:36px; border:none; cursor:pointer; padding:0; border-radius: 4px;">
-              <span id="perc_${i}" style="font-size: 14px; width: 36px; text-align: left;">${Math.round((c['stop_'+i]||0)*100)}%</span>
+            <div class="cp-row">
+              <input type="range" class="cp-slider" data-key="stop_${i}" min="1" max="99" value="${Math.round((c['stop_'+i]||0)*100)}">
+              <input type="color" class="cp-color" data-key="color_${i}" value="${c['color_'+i] || '#ffffff'}">
+              <span id="perc_${i}" class="cp-label">${Math.round((c['stop_'+i]||0)*100)}%</span>
             </div>
           `).join('')}
         </div>
