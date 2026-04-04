@@ -1,13 +1,12 @@
 /*!
- * 🟢 Donut Card v9.0.0 (The Visual Polish)
- * - Lettergroottes 100% gematcht met de Batterij-kaart.
- * - Colorpicker UI volledig vernieuwd (ronde swatches, HA-styling).
- * - Rest van de logica (v6.0.1) onaangetast gebleven.
+ * 🟢 Donut Card v10.0.0 (The Editor Persistence Update)
+ * - FIX: Editor onthoudt nu de opgeslagen kleuren en schuifjes perfect.
+ * - FIX: CSS is volledig herschreven om de strakke "vierkante" layout uit de foto na te bootsen.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "9.0.0";
+  const VERSION = "10.0.0";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -111,9 +110,29 @@
         gradientPaths += `<path d="M ${x0} ${y0} A ${R} ${R} 0 0 1 ${x1} ${y1}" fill="none" stroke="${this._colorAtStops(stops, i / 140)}" stroke-width="${W}" />`;
       }
 
+
+      // ===================================================================
+      // ✏️ TEKST INSTELLINGEN
+      // 300 = Dun | 400 = Normaal | 500 = Medium | 600 = Dik
+      // ===================================================================
+      
       const titleText = c.top_label_text || "";
-      // FIX: Basisgrootte flink omhoog naar 28 (was 24) om te matchen met Batterij-kaart.
-      let topFontSize = 28; 
+      
+      // 1. Titel (Boven)
+      let topFontSize = 28;         
+      const topFontWeight = "400";  
+
+      // 2. Hoofdwaarde (Midden)
+      const val1FontSize = "26";    
+      const val1FontWeight = "400"; 
+
+      // 3. Subwaarde (Onder)
+      const val2FontSize = "20";    
+      const val2FontWeight = "300"; 
+
+      // ===================================================================
+
+
       if (titleText.length > 12) topFontSize = 28 * (12 / titleText.length);
       topFontSize = Math.max(topFontSize, 14); 
 
@@ -143,9 +162,9 @@
                 <circle id="end-cap" cx="${cx}" cy="${cy - R}" r="${W / 2}" fill="${stops[0][1]}" style="transition: fill 0.5s ease-out;" />
               </g>
               
-              <text x="${cx}" y="${cy - R - 32}" font-size="${topFontSize}" font-weight="400" text-anchor="middle" dominant-baseline="middle">${titleText}</text>
-              <text id="val1" x="${cx}" y="${cy - 4}" font-size="26" text-anchor="middle" font-weight="400">--</text>
-              <text id="val2" x="${cx}" y="${cy + 24}" font-size="20" text-anchor="middle" font-weight="300"></text>
+              <text x="${cx}" y="${cy - R - 32}" font-size="${topFontSize}" font-weight="${topFontWeight}" text-anchor="middle" dominant-baseline="middle">${titleText}</text>
+              <text id="val1" x="${cx}" y="${cy - 4}" font-size="${val1FontSize}" text-anchor="middle" font-weight="${val1FontWeight}">--</text>
+              <text id="val2" x="${cx}" y="${cy + 24}" font-size="${val2FontSize}" text-anchor="middle" font-weight="${val2FontWeight}"></text>
             </svg>
           </div>
         </ha-card>
@@ -190,8 +209,38 @@
 
   /* --- HYBRID EDITOR --- */
   class DonutCardEditor extends HTMLElement {
-    setConfig(config) { this._config = config; if (this._f) this._f.data = config; }
-    set hass(h) { this._hass = h; if (!this._f) this._build(); this._f.hass = h; }
+    setConfig(config) { 
+      this._config = config; 
+      if (this._f) this._f.data = config; 
+      // FIX: Forceer de HTML UI om de waarden op te halen zodra config geladen is
+      this._updateUI(); 
+    }
+    
+    set hass(h) { 
+      this._hass = h; 
+      if (!this._f) this._build(); 
+      this._f.hass = h; 
+    }
+
+    // FIX: Deze functie synchroniseert de opgeslagen JSON data met de HTML schuifjes
+    _updateUI() {
+      if (!this.shadowRoot || !this._config) return;
+      const c = this._config;
+      
+      const startColor = this.shadowRoot.querySelector('[data-key="start_color"]');
+      if (startColor) startColor.value = c.start_color || '#0000ff';
+
+      [2,3,4,5].forEach(i => {
+        const slider = this.shadowRoot.querySelector(`[data-key="stop_${i}"]`);
+        const colorBox = this.shadowRoot.querySelector(`[data-key="color_${i}"]`);
+        const percText = this.shadowRoot.getElementById(`perc_${i}`);
+        const val = Math.round((c['stop_'+i] || 0) * 100);
+
+        if (slider) slider.value = val;
+        if (colorBox) colorBox.value = c['color_'+i] || '#ffffff';
+        if (percText) percText.textContent = val + '%';
+      });
+    }
     
     _build() {
       if (!this.shadowRoot) this.attachShadow({ mode: "open" });
@@ -220,31 +269,51 @@
         this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
       });
 
-      // FIX: Compleet nieuwe, strakke styling voor de Colorpicker met ronde swatches
+      // FIX: De CSS is exact nagemaakt van je eerste 'image.png' (Vierkante swatches, sliders links, text rechts)
       const cp = document.createElement("div");
       cp.innerHTML = `
         <style>
-          .cp-panel { background: var(--secondary-background-color, rgba(120,120,120,0.05)); padding: 16px; border-radius: 12px; border: 1px solid var(--divider-color, rgba(200,200,200,0.2)); }
-          .cp-title { font-weight: 500; margin-bottom: 16px; display: flex; align-items: center; font-size: 16px; color: var(--primary-text-color); }
-          .cp-row { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
-          .cp-color { width: 32px; height: 32px; border: 1px solid var(--divider-color, rgba(150,150,150,0.4)); border-radius: 50%; cursor: pointer; padding: 0; background: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .cp-panel { background: var(--secondary-background-color, rgba(150,150,150,0.08)); padding: 20px; border-radius: 12px; margin-top: -8px;}
+          .cp-title { font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; font-size: 16px; color: var(--primary-text-color); }
+          
+          .cp-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 16px; }
+          .cp-row-start { justify-content: flex-start; margin-bottom: 24px; }
+          
+          .cp-slider-container { flex-grow: 1; display: flex; align-items: center; }
+          .cp-slider { width: 100%; accent-color: var(--primary-color, #03a9f4); cursor: pointer; }
+          
+          .cp-right-group { display: flex; align-items: center; gap: 12px; width: 85px; justify-content: flex-start; }
+          
+          .cp-color { 
+            width: 38px; height: 38px; 
+            border: 1px solid rgba(128,128,128,0.3); 
+            border-radius: 6px; 
+            cursor: pointer; padding: 0; background: none; 
+            -webkit-appearance: none; 
+          }
           .cp-color::-webkit-color-swatch-wrapper { padding: 0; }
-          .cp-color::-webkit-color-swatch { border: none; border-radius: 50%; }
-          .cp-color::-moz-color-swatch { border: none; border-radius: 50%; }
-          .cp-slider { flex-grow: 1; accent-color: var(--primary-color, #03a9f4); cursor: pointer; }
-          .cp-label { font-size: 13px; width: 36px; text-align: right; color: var(--primary-text-color); font-family: var(--paper-font-body1_-_font-family, sans-serif); }
+          .cp-color::-webkit-color-swatch { border: none; border-radius: 5px; }
+          .cp-color::-moz-color-swatch { border: none; border-radius: 5px; }
+          
+          .cp-label { font-size: 14px; font-weight: 500; color: var(--primary-text-color); }
         </style>
         <div class="cp-panel">
           <div class="cp-title">🌈 Kleuren Verloop</div>
-          <div class="cp-row" style="margin-bottom: 20px;">
-            <input type="color" class="cp-color" data-key="start_color" value="${c.start_color || '#0000ff'}">
-            <span class="cp-label" style="width: auto;">Start (0%)</span>
+          
+          <div class="cp-row cp-row-start">
+            <input type="color" class="cp-color" data-key="start_color" value="#0000ff">
+            <span class="cp-label">Start (0%)</span>
           </div>
+          
           ${[2,3,4,5].map(i => `
             <div class="cp-row">
-              <input type="range" class="cp-slider" data-key="stop_${i}" min="1" max="99" value="${Math.round((c['stop_'+i]||0)*100)}">
-              <input type="color" class="cp-color" data-key="color_${i}" value="${c['color_'+i] || '#ffffff'}">
-              <span id="perc_${i}" class="cp-label">${Math.round((c['stop_'+i]||0)*100)}%</span>
+              <div class="cp-slider-container">
+                <input type="range" class="cp-slider" data-key="stop_${i}" min="1" max="99" value="0">
+              </div>
+              <div class="cp-right-group">
+                <input type="color" class="cp-color" data-key="color_${i}" value="#ffffff">
+                <span id="perc_${i}" class="cp-label">0%</span>
+              </div>
             </div>
           `).join('')}
         </div>
@@ -269,6 +338,9 @@
       wrapper.appendChild(cp);
       this.shadowRoot.appendChild(wrapper);
       this._f = f;
+      
+      // FIX: Initieer de UI direct na het opbouwen
+      this._updateUI();
     }
   }
 
