@@ -1,11 +1,11 @@
 /*!
- * 🟢 Donut Card v5.0.2 (Definitieve Syntax Fix & Tekst Positie)
+ * 🟢 Donut Card v5.0.3 (Definitieve Syntax Fix & Tekst Positie)
  * Fatale 'b' variabele conflict opgelost.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "5.0.2";
+  const VERSION = "5.0.3";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -173,4 +173,51 @@
       this._elements.v1.textContent = `${val1.toFixed(c.decimals_primary)} ${c.unit_primary || ""}`;
       if (c.entity_secondary && h.states[c.entity_secondary]) {
         const val2 = Number(h.states[c.entity_secondary].state.replace(",", ".")) || 0;
-        this._elements.v2.textContent = `${val2.
+        this._elements.v2.textContent = `${val2.toFixed(c.decimals_secondary)} ${c.unit_secondary || ""}`;
+      }
+
+      this._elements.mask.style.strokeDashoffset = this._circumference - (frac * this._circumference);
+      this._elements.start.style.opacity = frac <= 0.001 ? "0" : "1";
+      this._elements.endG.style.opacity = frac <= 0.001 ? "0" : "1";
+      this._elements.endG.style.transform = `rotate(${frac * 360}deg)`;
+      this._elements.endC.style.fill = this._colorAtStops(this._currentStops, frac);
+    }
+  }
+
+  class DonutCardEditor extends HTMLElement {
+    setConfig(config) { this._config = config; if (this._f) this._f.data = config; }
+    set hass(h) { this._hass = h; if (!this._f) this._build(); this._f.hass = h; }
+    _build() {
+      this.attachShadow({ mode: "open" });
+      const f = document.createElement("ha-form");
+      f.schema = [
+        { name: "top_label_text", label: "Titel (schaalt automatisch)", selector: { text: {} } },
+        { name: "max_value", label: "Max Waarde", selector: { number: { mode: "box" } } },
+        { name: "entity_primary", label: "Hoofd Entiteit", selector: { entity: {} } },
+        { type: "grid", name: "", schema: [{ name: "unit_primary", label: "Eenheid" }, { name: "decimals_primary", label: "Decimalen", selector: { number: {} } }] },
+        { name: "entity_secondary", label: "Sub Entiteit (Optioneel)", selector: { entity: {} } },
+        { type: "grid", name: "", schema: [{ name: "unit_secondary", label: "Eenheid" }, { name: "decimals_secondary", label: "Decimalen", selector: { number: {} } }] }
+      ];
+      f.computeLabel = s => s.label;
+      f.data = this._config;
+      f.addEventListener("value-changed", ev => {
+        this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: ev.detail.value }, bubbles: true, composed: true }));
+      });
+      this.shadowRoot.appendChild(f);
+      this._f = f;
+    }
+  }
+
+  customElements.define("donut-card-editor", DonutCardEditor);
+  customElements.define(TAG, DonutCard);
+
+  window.customCards = window.customCards || [];
+  if (!window.customCards.some(c => c.type === "donut-card")) {
+    window.customCards.push({ 
+      type: "donut-card", 
+      name: "Donut Card", 
+      description: "Algemene donut kaart voor Home Assistant", 
+      preview: true 
+    });
+  }
+})();
