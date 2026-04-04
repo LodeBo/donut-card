@@ -1,12 +1,12 @@
 /*!
- * 🟢 Donut Card v12.0.0 (The Editor Persistence Update)
- * - FIX: Editor onthoudt nu de opgeslagen kleuren en schuifjes perfect.
- * - FIX: CSS is volledig herschreven om de strakke "vierkante" layout uit de foto na te bootsen.
+ * 🟢 Donut Card v6.2.1 (The Mobile Scaling Fix)
+ * - viewBox hersteld naar 0 0 260 260 (exact als Batterij-kaart) voor perfecte mobiele schaling.
+ * - overflow: visible toegevoegd zodat tekst nooit meer afsnijdt.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "12.0.0";
+  const VERSION = "6.2.1";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -110,44 +110,42 @@
         gradientPaths += `<path d="M ${x0} ${y0} A ${R} ${R} 0 0 1 ${x1} ${y1}" fill="none" stroke="${this._colorAtStops(stops, i / 140)}" stroke-width="${W}" />`;
       }
 
-
       // ===================================================================
       // ✏️ TEKST INSTELLINGEN
-      // 300 = Dun | 400 = Normaal | 500 = Medium | 600 = Dik
       // ===================================================================
       
       const titleText = c.top_label_text || "";
       
       // 1. Titel (Boven)
-      let topFontSize = 32;         
-      const topFontWeight = "350";  
+      let topFontSize = 28;         
+      const topFontWeight = "400";  
 
       // 2. Hoofdwaarde (Midden)
       const val1FontSize = "26";    
-      const val1FontWeight = "350"; 
+      const val1FontWeight = "400"; 
 
       // 3. Subwaarde (Onder)
-      const val2FontSize = "23";    
-      const val2FontWeight = "350"; 
+      const val2FontSize = "20";    
+      const val2FontWeight = "300"; 
 
       // ===================================================================
-
 
       if (titleText.length > 12) topFontSize = 28 * (12 / titleText.length);
       topFontSize = Math.max(topFontSize, 14); 
 
+      // FIX: overflow: visible op de svg, en viewBox strak op 0 0 260 260
       this.shadowRoot.innerHTML = `
         <style>
           :host { display: block; width: 100%; height: 100%; }
           ha-card { background: var(--card-background-color); border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; width:100%; height:100%; box-sizing: border-box; padding: 12px; overflow: hidden; }
           .wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
-          svg { width: 100%; height: 100%; aspect-ratio: 1 / 1; display: block; max-width: 100%; }
+          svg { width: 100%; height: 100%; aspect-ratio: 1 / 1; display: block; max-width: 100%; overflow: visible; }
           text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: var(--primary-text-color, #ffffff); }
           #mask-circle { transition: stroke-dashoffset 0.5s ease-out; }
         </style>
         <ha-card>
           <div class="wrap">
-            <svg viewBox="-20 0 300 260" preserveAspectRatio="xMidYMid meet">
+            <svg viewBox="0 0 260 260" preserveAspectRatio="xMidYMid meet">
               <defs>
                 <mask id="m">
                   <circle id="mask-circle" cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="white" stroke-width="${W}" 
@@ -207,12 +205,10 @@
     }
   }
 
-  /* --- HYBRID EDITOR --- */
   class DonutCardEditor extends HTMLElement {
     setConfig(config) { 
       this._config = config; 
       if (this._f) this._f.data = config; 
-      // FIX: Forceer de HTML UI om de waarden op te halen zodra config geladen is
       this._updateUI(); 
     }
     
@@ -222,7 +218,6 @@
       this._f.hass = h; 
     }
 
-    // FIX: Deze functie synchroniseert de opgeslagen JSON data met de HTML schuifjes
     _updateUI() {
       if (!this.shadowRoot || !this._config) return;
       const c = this._config;
@@ -269,7 +264,6 @@
         this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
       });
 
-      // FIX: De CSS is exact nagemaakt van je eerste 'image.png' (Vierkante swatches, sliders links, text rechts)
       const cp = document.createElement("div");
       cp.innerHTML = `
         <style>
@@ -338,8 +332,6 @@
       wrapper.appendChild(cp);
       this.shadowRoot.appendChild(wrapper);
       this._f = f;
-      
-      // FIX: Initieer de UI direct na het opbouwen
       this._updateUI();
     }
   }
