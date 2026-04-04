@@ -5,7 +5,7 @@ A small, beautiful donut chart Lovelace card for Home Assistant with multi-stop 
 <p align="center">
   <img src="docs/preview.png" alt="Donut Card preview" width="600"/>
 </p>
-
+https://github.com/LodeBo/donut-card/blob/main/donut.png
 ---
 
 ## ✨ Features
