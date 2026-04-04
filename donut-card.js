@@ -1,12 +1,12 @@
 /*!
- * 🟢 Donut Card v6.2.1 (The Mobile Scaling Fix)
+ * 🟢 Donut Card v12.0.0 (The Mobile Scaling Fix)
  * - viewBox hersteld naar 0 0 260 260 (exact als Batterij-kaart) voor perfecte mobiele schaling.
  * - overflow: visible toegevoegd zodat tekst nooit meer afsnijdt.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "6.2.1";
+  const VERSION = "12.0.0";
 
   class DonutCard extends HTMLElement {
     constructor() {
