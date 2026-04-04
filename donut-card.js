@@ -127,7 +127,7 @@
       const val1FontWeight = "350"; 
 
       // 3. Subwaarde (Onder)
-      const val2FontSize = "30";    
+      const val2FontSize = "26";    
       const val2FontWeight = "350"; 
 
       // ===================================================================
