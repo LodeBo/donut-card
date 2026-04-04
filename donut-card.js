@@ -1,6 +1,6 @@
 /*!
- * 🟢 Donut Card v5.0.3 (Definitieve Syntax Fix & Tekst Positie)
- * Fatale 'b' variabele conflict opgelost.
+ * 🟢 Donut Card v5.0.3 (Editor Restored & Auto Text Color)
+ * Kleur-opties terug in de editor gezet en wit-op-wit tekst probleem opgelost.
  */
 
 (() => {
@@ -65,7 +65,6 @@
       return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : { r: 255, g: 255, b: 255 };
     }
     
-    // FIX: Variabelen hernoemd zodat 'b' niet dubbel gedeclareerd wordt!
     _lerpColor(colorA, colorB, t) {
       const A = this._hex2rgb(colorA), B = this._hex2rgb(colorB);
       const lerp = (v0, v1, f) => Math.round(v0 + (v1 - v0) * f);
@@ -112,19 +111,17 @@
 
       const titleText = c.top_label_text || "";
       let topFontSize = 26; 
-      
-      if (titleText.length > 12) {
-        topFontSize = 26 * (12 / titleText.length);
-      }
+      if (titleText.length > 12) topFontSize = 26 * (12 / titleText.length);
       topFontSize = Math.max(topFontSize, 12); 
 
+      // FIX: fillkleur van de text is nu var(--primary-text-color) ipv hard '#ffffff'
       this.shadowRoot.innerHTML = `
         <style>
           :host { display: block; width: 100%; height: 100%; }
           ha-card { background: var(--card-background-color); border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; width:100%; height:100%; box-sizing: border-box; padding: 12px; overflow: hidden; }
           .wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
           svg { width: 100%; height: 100%; aspect-ratio: 1 / 1; display: block; }
-          text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: #ffffff; }
+          text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: var(--primary-text-color, #ffffff); }
           #mask-circle { transition: stroke-dashoffset 0.5s ease-out; }
         </style>
         <ha-card>
@@ -137,7 +134,7 @@
                     transform="rotate(-90 ${cx} ${cy})" />
                 </mask>
               </defs>
-              <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#000000" stroke-width="${W}" />
+              <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="var(--divider-color, #444)" stroke-width="${W}" />
               <g mask="url(#m)">${gradientPaths}</g>
               <circle id="start-cap" cx="${cx}" cy="${cy - R}" r="${W / 2}" fill="${stops[0][1]}" />
               <g id="end-cap-group" style="transform-origin: ${cx}px ${cy}px; transition: transform 0.5s ease-out;">
@@ -145,7 +142,6 @@
               </g>
               
               <text x="${cx}" y="${cy - R - 35}" font-size="${topFontSize}" font-weight="300" text-anchor="middle" dominant-baseline="middle">${titleText}</text>
-              
               <text id="val1" x="${cx}" y="${cy - R * 0.05}" font-size="24" text-anchor="middle" font-weight="400">--</text>
               <text id="val2" x="${cx}" y="${cy + R * 0.35}" font-size="24" text-anchor="middle" font-weight="300"></text>
             </svg>
@@ -184,19 +180,26 @@
     }
   }
 
+  /* --- EDITOR MET HERSTELDE KLEUR-VELDEN --- */
   class DonutCardEditor extends HTMLElement {
     setConfig(config) { this._config = config; if (this._f) this._f.data = config; }
     set hass(h) { this._hass = h; if (!this._f) this._build(); this._f.hass = h; }
     _build() {
       this.attachShadow({ mode: "open" });
       const f = document.createElement("ha-form");
+      // Hier staan de kleur- en stopvelden weer netjes in!
       f.schema = [
-        { name: "top_label_text", label: "Titel (schaalt automatisch)", selector: { text: {} } },
+        { name: "top_label_text", label: "Titel", selector: { text: {} } },
         { name: "max_value", label: "Max Waarde", selector: { number: { mode: "box" } } },
         { name: "entity_primary", label: "Hoofd Entiteit", selector: { entity: {} } },
         { type: "grid", name: "", schema: [{ name: "unit_primary", label: "Eenheid" }, { name: "decimals_primary", label: "Decimalen", selector: { number: {} } }] },
         { name: "entity_secondary", label: "Sub Entiteit (Optioneel)", selector: { entity: {} } },
-        { type: "grid", name: "", schema: [{ name: "unit_secondary", label: "Eenheid" }, { name: "decimals_secondary", label: "Decimalen", selector: { number: {} } }] }
+        { type: "grid", name: "", schema: [{ name: "unit_secondary", label: "Eenheid" }, { name: "decimals_secondary", label: "Decimalen", selector: { number: {} } }] },
+        { name: "start_color", label: "Start Kleur (0%)", selector: { text: {} } },
+        { type: "grid", name: "", schema: [{ name: "stop_2", label: "Positie 2 (0.00 - 1.00)", selector: { number: { step: 0.01 } } }, { name: "color_2", label: "Kleur 2", selector: { text: {} } }] },
+        { type: "grid", name: "", schema: [{ name: "stop_3", label: "Positie 3 (0.00 - 1.00)", selector: { number: { step: 0.01 } } }, { name: "color_3", label: "Kleur 3", selector: { text: {} } }] },
+        { type: "grid", name: "", schema: [{ name: "stop_4", label: "Positie 4 (0.00 - 1.00)", selector: { number: { step: 0.01 } } }, { name: "color_4", label: "Kleur 4", selector: { text: {} } }] },
+        { type: "grid", name: "", schema: [{ name: "stop_5", label: "Positie 5 (0.00 - 1.00)", selector: { number: { step: 0.01 } } }, { name: "color_5", label: "Kleur 5", selector: { text: {} } }] }
       ];
       f.computeLabel = s => s.label;
       f.data = this._config;
