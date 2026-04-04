@@ -3,9 +3,9 @@
 A small, beautiful donut chart Lovelace card for Home Assistant with multi-stop gradient coloring and support for two entities (primary + secondary). Designed to be lightweight, highly configurable, and to work seamlessly in the Lovelace visual editor.
 
 <p align="center">
-  <img src="docs/preview.png" alt="Donut Card preview" width="600"/>
+  <img src="docs/donut.png" alt="Donut Card preview" width="600"/>
 </p>
-https://github.com/LodeBo/donut-card/blob/main/donut.png
+
 ---
 
 ## ✨ Features
