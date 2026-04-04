@@ -1,12 +1,12 @@
 /*!
- * 🟢 Donut Card v14.0.0 (The Modern Round UI)
- * - viewBox en lettergroottes (34/24) 100% behouden uit v13.
- * - Colorpicker UI geüpdatet naar perfect ronde swatches met schaduw.
+ * 🟢 Donut Card v14.0.1 (The Pure White Text Fix)
+ * - Tekstkleur geforceerd naar puur wit (#ffffff) in plaats van de thema-variabele, 
+ * voor een 100% perfecte match met de Batterij-kaart.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "14.0.0";
+  const VERSION = "14.0.1";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -139,7 +139,8 @@
           ha-card { background: var(--card-background-color); border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; width:100%; height:100%; box-sizing: border-box; padding: 12px; overflow: hidden; }
           .wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
           svg { width: 100%; height: 100%; aspect-ratio: 1 / 1; display: block; max-width: 100%; overflow: visible; }
-          text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: var(--primary-text-color, #ffffff); }
+          /* FIX: fill is nu hard #ffffff in plaats van var(--primary-text-color) */
+          text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: #ffffff; }
           #mask-circle { transition: stroke-dashoffset 0.5s ease-out; }
         </style>
         <ha-card>
@@ -277,7 +278,6 @@
           
           .cp-right-group { display: flex; align-items: center; gap: 12px; width: 85px; justify-content: flex-start; }
           
-          /* VOLLEDIG RONDE EN MODERNE SWATCHES */
           .cp-color { 
             width: 36px; height: 36px; 
             border: 2px solid rgba(128,128,128,0.2); 
@@ -336,7 +336,6 @@
       this.shadowRoot.appendChild(wrapper);
       this._f = f;
       
-      // Laad direct de opgeslagen waarden in
       this._updateUI();
     }
   }
