@@ -1,0 +1,12 @@
+{
+  "domain": "donut-card",
+  "name": "Donut Card",
+  "author": "Lodebo & Gemini",
+  "version": "5.0.1",
+  "documentation": "https://github.com/lodebo/battery-donut-card",
+  "is_helper": false,
+  "render_native": true,
+  "requirements": [],
+  "codeowners": ["lodebo"],
+  "iot_class": "local_polling"
+}
