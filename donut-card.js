@@ -1,12 +1,12 @@
 /*!
- * 🟢 Donut Card v13.0.0 (The Mobile Scaling Fix)
- * - viewBox hersteld naar 0 0 260 260 (exact als Batterij-kaart) voor perfecte mobiele schaling.
- * - overflow: visible toegevoegd zodat tekst nooit meer afsnijdt.
+ * 🟢 Donut Card v14.0.0 (The Modern Round UI)
+ * - viewBox en lettergroottes (34/24) 100% behouden uit v13.
+ * - Colorpicker UI geüpdatet naar perfect ronde swatches met schaduw.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "13.0.0";
+  const VERSION = "14.0.0";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -133,7 +133,6 @@
       if (titleText.length > 12) topFontSize = 28 * (12 / titleText.length);
       topFontSize = Math.max(topFontSize, 14); 
 
-      // FIX: overflow: visible op de svg, en viewBox strak op 0 0 260 260
       this.shadowRoot.innerHTML = `
         <style>
           :host { display: block; width: 100%; height: 100%; }
@@ -278,16 +277,20 @@
           
           .cp-right-group { display: flex; align-items: center; gap: 12px; width: 85px; justify-content: flex-start; }
           
+          /* VOLLEDIG RONDE EN MODERNE SWATCHES */
           .cp-color { 
-            width: 38px; height: 38px; 
-            border: 1px solid rgba(128,128,128,0.3); 
-            border-radius: 6px; 
+            width: 36px; height: 36px; 
+            border: 2px solid rgba(128,128,128,0.2); 
+            border-radius: 50%; 
             cursor: pointer; padding: 0; background: none; 
             -webkit-appearance: none; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+            transition: transform 0.2s ease;
           }
+          .cp-color:hover { transform: scale(1.05); }
           .cp-color::-webkit-color-swatch-wrapper { padding: 0; }
-          .cp-color::-webkit-color-swatch { border: none; border-radius: 5px; }
-          .cp-color::-moz-color-swatch { border: none; border-radius: 5px; }
+          .cp-color::-webkit-color-swatch { border: none; border-radius: 50%; }
+          .cp-color::-moz-color-swatch { border: none; border-radius: 50%; }
           
           .cp-label { font-size: 14px; font-weight: 500; color: var(--primary-text-color); }
         </style>
@@ -332,6 +335,8 @@
       wrapper.appendChild(cp);
       this.shadowRoot.appendChild(wrapper);
       this._f = f;
+      
+      // Laad direct de opgeslagen waarden in
       this._updateUI();
     }
   }
