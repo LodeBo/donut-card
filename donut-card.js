@@ -1,11 +1,11 @@
 /*!
- * 🟢 Donut Card v5.0.0 (Perfect Center & Enhanced Text Positioning)
- * Tekstpositie verbeterd en versie bijgewerkt.
+ * 🟢 Donut Card v5.0.1 (Syntax Fix & Enhanced Text Positioning)
+ * Vaste syntax fout in hex2rgb regex en perfecte positionering.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "5.0.0";
+  const VERSION = "5.0.1";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -61,7 +61,8 @@
     _toRad(d) { return (d * Math.PI) / 180; }
     
     _hex2rgb(h) {
-      const m = /^#?([a-f\d/${2})([a-f\d/${2})([a-f\d/${2})$/i.exec(String(h).trim());
+      // FIX: De corrupte regex is hier hersteld naar de juiste waarden.
+      const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(h).trim());
       return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : { r: 255, g: 255, b: 255 };
     }
     _lerpColor(a, b, t) {
@@ -108,15 +109,13 @@
         gradientPaths += `<path d="M ${x0} ${y0} A ${R} ${R} 0 0 1 ${x1} ${y1}" fill="none" stroke="${this._colorAtStops(stops, i / 140)}" stroke-width="${W}" />`;
       }
 
-      // --- VERBETERDE AUTO-SCALING TEKST ---
+      // --- AUTO-SCALING TEKST ---
       const titleText = c.top_label_text || "";
-      let topFontSize = 26; // Standaard basisgrootte
+      let topFontSize = 26; 
       
-      // Iets agressievere krimp voor alles langer dan 12 karakters
       if (titleText.length > 12) {
         topFontSize = 26 * (12 / titleText.length);
       }
-      // Bodemlimiet ingesteld op 12px zodat het niet microscopisch klein wordt
       topFontSize = Math.max(topFontSize, 12); 
 
       this.shadowRoot.innerHTML = `
@@ -216,7 +215,7 @@
   if (!window.customCards.some(c => c.type === "donut-card")) {
     window.customCards.push({ 
       type: "donut-card", 
-      name: "Donut Card v5.0.0", 
+      name: "Donut Card", 
       description: "Algemene donut kaart voor Home Assistant", 
       preview: true 
     });
