@@ -1,11 +1,13 @@
 /*!
- * 🟢 Donut Card v6.0.0 (Editor Restored & Auto Text Color)
- * Kleur-opties terug in de editor gezet en wit-op-wit tekst probleem opgelost.
+ * 🟢 Donut Card v7.0.0 (The Ultimate Match)
+ * - Custom UI Color Picker (Sliders + Box) hersteld!
+ * - Eenheden-invoer (unit_primary/secondary) gefixt.
+ * - Tekst verhoudingen en gewicht 100% gelijkgetrokken met de Batterij-kaart.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "6.0.0";
+  const VERSION = "7.0.0";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -21,19 +23,19 @@
     static getStubConfig() {
       return {
         type: "custom:donut-card",
-        top_label_text: "Temperatuur",
-        max_value: 40,
+        top_label_text: "Zonnepanelen",
+        max_value: 4100,
         entity_primary: "",
-        unit_primary: "°C",
-        decimals_primary: 1,
+        unit_primary: "W",
+        decimals_primary: 0,
         entity_secondary: "",
-        unit_secondary: "",
-        decimals_secondary: 0,
-        start_color: "#00BCD4",
-        stop_2: 0.35, color_2: "#4CAF50",
-        stop_3: 0.55, color_3: "#FFEB3B",
-        stop_4: 0.75, color_4: "#FF9800",
-        stop_5: 0.90, color_5: "#F44336",
+        unit_secondary: "kWh",
+        decimals_secondary: 2,
+        start_color: "#0000ff",
+        stop_2: 0.38, color_2: "#008000",
+        stop_3: 0.57, color_3: "#ff007f",
+        stop_4: 0.72, color_4: "#000033",
+        stop_5: 0.89, color_5: "#cc3300",
       };
     }
 
@@ -110,23 +112,23 @@
       }
 
       const titleText = c.top_label_text || "";
-      let topFontSize = 26; 
-      if (titleText.length > 12) topFontSize = 26 * (12 / titleText.length);
+      // Titel dynamisch schalen, gewicht 400 net als batterij
+      let topFontSize = 24; 
+      if (titleText.length > 12) topFontSize = 24 * (12 / titleText.length);
       topFontSize = Math.max(topFontSize, 12); 
 
-      // FIX: fillkleur van de text is nu var(--primary-text-color) ipv hard '#ffffff'
       this.shadowRoot.innerHTML = `
         <style>
           :host { display: block; width: 100%; height: 100%; }
           ha-card { background: var(--card-background-color); border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; width:100%; height:100%; box-sizing: border-box; padding: 12px; overflow: hidden; }
           .wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
-          svg { width: 100%; height: 100%; aspect-ratio: 1 / 1; display: block; }
+          svg { width: 100%; height: 100%; aspect-ratio: 1 / 1; display: block; max-width: 100%; }
           text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: var(--primary-text-color, #ffffff); }
           #mask-circle { transition: stroke-dashoffset 0.5s ease-out; }
         </style>
         <ha-card>
           <div class="wrap">
-            <svg viewBox="-20 0 300 260">
+            <svg viewBox="-20 0 300 260" preserveAspectRatio="xMidYMid meet">
               <defs>
                 <mask id="m">
                   <circle id="mask-circle" cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="white" stroke-width="${W}" 
@@ -134,16 +136,16 @@
                     transform="rotate(-90 ${cx} ${cy})" />
                 </mask>
               </defs>
-              <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="var(--divider-color, #444)" stroke-width="${W}" />
+              <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#222222" stroke-width="${W}" />
               <g mask="url(#m)">${gradientPaths}</g>
               <circle id="start-cap" cx="${cx}" cy="${cy - R}" r="${W / 2}" fill="${stops[0][1]}" />
               <g id="end-cap-group" style="transform-origin: ${cx}px ${cy}px; transition: transform 0.5s ease-out;">
                 <circle id="end-cap" cx="${cx}" cy="${cy - R}" r="${W / 2}" fill="${stops[0][1]}" style="transition: fill 0.5s ease-out;" />
               </g>
               
-              <text x="${cx}" y="${cy - R - 35}" font-size="${topFontSize}" font-weight="300" text-anchor="middle" dominant-baseline="middle">${titleText}</text>
-              <text id="val1" x="${cx}" y="${cy - R * 0.05}" font-size="24" text-anchor="middle" font-weight="400">--</text>
-              <text id="val2" x="${cx}" y="${cy + R * 0.35}" font-size="24" text-anchor="middle" font-weight="300"></text>
+              <text x="${cx}" y="${cy - R - 32}" font-size="${topFontSize}" font-weight="400" text-anchor="middle" dominant-baseline="middle">${titleText}</text>
+              <text id="val1" x="${cx}" y="${cy - 4}" font-size="22" text-anchor="middle" font-weight="400">--</text>
+              <text id="val2" x="${cx}" y="${cy + 24}" font-size="22" text-anchor="middle" font-weight="300"></text>
             </svg>
           </div>
         </ha-card>
@@ -167,9 +169,16 @@
       const frac = this._clamp(val1 / (Number(c.max_value) || 100), 0, 1);
       
       this._elements.v1.textContent = `${val1.toFixed(c.decimals_primary)} ${c.unit_primary || ""}`;
+      
+      // Centreer logica: Als er géén sub-entiteit is, zet hoofdwaarde perfect in het midden
       if (c.entity_secondary && h.states[c.entity_secondary]) {
         const val2 = Number(h.states[c.entity_secondary].state.replace(",", ".")) || 0;
         this._elements.v2.textContent = `${val2.toFixed(c.decimals_secondary)} ${c.unit_secondary || ""}`;
+        this._elements.v2.style.display = "block";
+        this._elements.v1.setAttribute("y", "126"); // Iets naar boven (130 - 4)
+      } else {
+        this._elements.v2.style.display = "none";
+        this._elements.v1.setAttribute("y", "138"); // Perfect in het hart van de cirkel
       }
 
       this._elements.mask.style.strokeDashoffset = this._circumference - (frac * this._circumference);
@@ -180,33 +189,78 @@
     }
   }
 
-  /* --- EDITOR MET HERSTELDE KLEUR-VELDEN --- */
+  /* --- HYBRID EDITOR: HA-FORM + CUSTOM KLEUREN UI --- */
   class DonutCardEditor extends HTMLElement {
     setConfig(config) { this._config = config; if (this._f) this._f.data = config; }
     set hass(h) { this._hass = h; if (!this._f) this._build(); this._f.hass = h; }
+    
     _build() {
-      this.attachShadow({ mode: "open" });
+      if (!this.shadowRoot) this.attachShadow({ mode: "open" });
+      this.shadowRoot.innerHTML = ''; 
+
+      const wrapper = document.createElement("div");
+      wrapper.style.display = "flex";
+      wrapper.style.flexDirection = "column";
+      wrapper.style.gap = "24px";
+
+      // DEEL 1: De Standaard Formulier velden (MET eenheden tekstvelden!)
       const f = document.createElement("ha-form");
-      // Hier staan de kleur- en stopvelden weer netjes in!
       f.schema = [
-        { name: "top_label_text", label: "Titel", selector: { text: {} } },
+        { name: "top_label_text", label: "Titel (schaalt automatisch)", selector: { text: {} } },
         { name: "max_value", label: "Max Waarde", selector: { number: { mode: "box" } } },
         { name: "entity_primary", label: "Hoofd Entiteit", selector: { entity: {} } },
-        { type: "grid", name: "", schema: [{ name: "unit_primary", label: "Eenheid" }, { name: "decimals_primary", label: "Decimalen", selector: { number: {} } }] },
+        { type: "grid", name: "", schema: [{ name: "unit_primary", label: "Eenheid (W, kWh...)", selector: { text: {} } }, { name: "decimals_primary", label: "Decimalen", selector: { number: { mode: "box" } } }] },
         { name: "entity_secondary", label: "Sub Entiteit (Optioneel)", selector: { entity: {} } },
-        { type: "grid", name: "", schema: [{ name: "unit_secondary", label: "Eenheid" }, { name: "decimals_secondary", label: "Decimalen", selector: { number: {} } }] },
-        { name: "start_color", label: "Start Kleur (0%)", selector: { text: {} } },
-        { type: "grid", name: "", schema: [{ name: "stop_2", label: "Positie 2 (0.00 - 1.00)", selector: { number: { step: 0.01 } } }, { name: "color_2", label: "Kleur 2", selector: { text: {} } }] },
-        { type: "grid", name: "", schema: [{ name: "stop_3", label: "Positie 3 (0.00 - 1.00)", selector: { number: { step: 0.01 } } }, { name: "color_3", label: "Kleur 3", selector: { text: {} } }] },
-        { type: "grid", name: "", schema: [{ name: "stop_4", label: "Positie 4 (0.00 - 1.00)", selector: { number: { step: 0.01 } } }, { name: "color_4", label: "Kleur 4", selector: { text: {} } }] },
-        { type: "grid", name: "", schema: [{ name: "stop_5", label: "Positie 5 (0.00 - 1.00)", selector: { number: { step: 0.01 } } }, { name: "color_5", label: "Kleur 5", selector: { text: {} } }] }
+        { type: "grid", name: "", schema: [{ name: "unit_secondary", label: "Eenheid (W, kWh...)", selector: { text: {} } }, { name: "decimals_secondary", label: "Decimalen", selector: { number: { mode: "box" } } }] }
       ];
       f.computeLabel = s => s.label;
       f.data = this._config;
       f.addEventListener("value-changed", ev => {
-        this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: ev.detail.value }, bubbles: true, composed: true }));
+        this._config = { ...this._config, ...ev.detail.value };
+        this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
       });
-      this.shadowRoot.appendChild(f);
+
+      // DEEL 2: De visuele custom Color Picker
+      const c = this._config;
+      const cp = document.createElement("div");
+      cp.innerHTML = `
+        <div style="background: var(--secondary-background-color, rgba(120,120,120,0.1)); padding: 16px; border-radius: 8px;">
+          <div style="font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+            🌈 Kleuren Verloop
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <input type="color" data-key="start_color" value="${c.start_color || '#0000ff'}" style="width:36px; height:36px; border:none; cursor:pointer; padding:0; border-radius: 4px;">
+            <span style="font-size: 14px;">Start (0%)</span>
+          </div>
+          ${[2,3,4,5].map(i => `
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+              <input type="range" data-key="stop_${i}" min="1" max="99" value="${Math.round((c['stop_'+i]||0)*100)}" style="flex-grow: 1; cursor: ew-resize;">
+              <input type="color" data-key="color_${i}" value="${c['color_'+i] || '#ffffff'}" style="width:36px; height:36px; border:none; cursor:pointer; padding:0; border-radius: 4px;">
+              <span id="perc_${i}" style="font-size: 14px; width: 36px; text-align: left;">${Math.round((c['stop_'+i]||0)*100)}%</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      // Event Listeners voor de Custom Color Picker
+      cp.querySelectorAll('input[type="color"]').forEach(el => {
+        el.addEventListener('input', e => {
+          this._config = { ...this._config, [e.target.dataset.key]: e.target.value };
+          this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
+        });
+      });
+      cp.querySelectorAll('input[type="range"]').forEach(el => {
+        el.addEventListener('input', e => {
+          const val = parseInt(e.target.value, 10);
+          cp.querySelector(`#perc_${e.target.dataset.key.split('_')[1]}`).textContent = val + '%';
+          this._config = { ...this._config, [e.target.dataset.key]: val / 100 };
+          this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
+        });
+      });
+
+      wrapper.appendChild(f);
+      wrapper.appendChild(cp);
+      this.shadowRoot.appendChild(wrapper);
       this._f = f;
     }
   }
@@ -219,7 +273,7 @@
     window.customCards.push({ 
       type: "donut-card", 
       name: "Donut Card", 
-      description: "Algemene donut kaart voor Home Assistant", 
+      description: "Algemene donut kaart met sliders en custom tekst", 
       preview: true 
     });
   }
