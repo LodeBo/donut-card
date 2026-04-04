@@ -1,13 +1,12 @@
 /*!
- * 🟢 Donut Card v7.0.0 (The Ultimate Match)
- * - Custom UI Color Picker (Sliders + Box) hersteld!
- * - Eenheden-invoer (unit_primary/secondary) gefixt.
- * - Tekst verhoudingen en gewicht 100% gelijkgetrokken met de Batterij-kaart.
+ * 🟢 Donut Card v8.0.0 (The Final Editor Crash Fix)
+ * - Verhelpt de "Cannot read properties of undefined (reading 'start_color')" crash in de visuele editor.
+ * - Inclusief alle Batterij-kaart fixes, eenheden en de custom colorpicker.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "7.0.0";
+  const VERSION = "8.0.0";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -112,7 +111,6 @@
       }
 
       const titleText = c.top_label_text || "";
-      // Titel dynamisch schalen, gewicht 400 net als batterij
       let topFontSize = 24; 
       if (titleText.length > 12) topFontSize = 24 * (12 / titleText.length);
       topFontSize = Math.max(topFontSize, 12); 
@@ -170,15 +168,14 @@
       
       this._elements.v1.textContent = `${val1.toFixed(c.decimals_primary)} ${c.unit_primary || ""}`;
       
-      // Centreer logica: Als er géén sub-entiteit is, zet hoofdwaarde perfect in het midden
       if (c.entity_secondary && h.states[c.entity_secondary]) {
         const val2 = Number(h.states[c.entity_secondary].state.replace(",", ".")) || 0;
         this._elements.v2.textContent = `${val2.toFixed(c.decimals_secondary)} ${c.unit_secondary || ""}`;
         this._elements.v2.style.display = "block";
-        this._elements.v1.setAttribute("y", "126"); // Iets naar boven (130 - 4)
+        this._elements.v1.setAttribute("y", "126");
       } else {
         this._elements.v2.style.display = "none";
-        this._elements.v1.setAttribute("y", "138"); // Perfect in het hart van de cirkel
+        this._elements.v1.setAttribute("y", "138");
       }
 
       this._elements.mask.style.strokeDashoffset = this._circumference - (frac * this._circumference);
@@ -189,7 +186,7 @@
     }
   }
 
-  /* --- HYBRID EDITOR: HA-FORM + CUSTOM KLEUREN UI --- */
+  /* --- HYBRID EDITOR --- */
   class DonutCardEditor extends HTMLElement {
     setConfig(config) { this._config = config; if (this._f) this._f.data = config; }
     set hass(h) { this._hass = h; if (!this._f) this._build(); this._f.hass = h; }
@@ -203,7 +200,9 @@
       wrapper.style.flexDirection = "column";
       wrapper.style.gap = "24px";
 
-      // DEEL 1: De Standaard Formulier velden (MET eenheden tekstvelden!)
+      // CRUCIALE FIX: Fallback naar leeg object als _config er nog niet is
+      const c = this._config || {};
+
       const f = document.createElement("ha-form");
       f.schema = [
         { name: "top_label_text", label: "Titel (schaalt automatisch)", selector: { text: {} } },
@@ -214,14 +213,12 @@
         { type: "grid", name: "", schema: [{ name: "unit_secondary", label: "Eenheid (W, kWh...)", selector: { text: {} } }, { name: "decimals_secondary", label: "Decimalen", selector: { number: { mode: "box" } } }] }
       ];
       f.computeLabel = s => s.label;
-      f.data = this._config;
+      f.data = c;
       f.addEventListener("value-changed", ev => {
         this._config = { ...this._config, ...ev.detail.value };
         this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
       });
 
-      // DEEL 2: De visuele custom Color Picker
-      const c = this._config;
       const cp = document.createElement("div");
       cp.innerHTML = `
         <div style="background: var(--secondary-background-color, rgba(120,120,120,0.1)); padding: 16px; border-radius: 8px;">
@@ -242,7 +239,6 @@
         </div>
       `;
 
-      // Event Listeners voor de Custom Color Picker
       cp.querySelectorAll('input[type="color"]').forEach(el => {
         el.addEventListener('input', e => {
           this._config = { ...this._config, [e.target.dataset.key]: e.target.value };
