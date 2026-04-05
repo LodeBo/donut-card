@@ -1,12 +1,12 @@
 /*!
- * 🟢 Donut Card v14.0.1 (The Pure White Text Fix)
- * - Tekstkleur geforceerd naar puur wit (#ffffff) in plaats van de thema-variabele, 
- * voor een 100% perfecte match met de Batterij-kaart.
+ * 🟢 Donut Card v15.0.0 (The Professional Edition)
+ * - Toegevoegd: Optionele Min/Max entiteiten in de hoeken (↓ / ↑).
+ * - Toegevoegd: Trend-indicator (pijltje) naast de hoofdwaarde.
+ * - Optimalisatie: Buffer op trend-pijl tegen 'jitter'.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "14.0.1";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -15,6 +15,7 @@
       this._hass = null;
       this._config = null;
       this._elements = {};
+      this._lastValue = null; // Voor trend-berekening
     }
 
     static getConfigElement() { return document.createElement("donut-card-editor"); }
@@ -22,19 +23,14 @@
     static getStubConfig() {
       return {
         type: "custom:donut-card",
-        top_label_text: "Zonnepanelen",
-        max_value: 4100,
+        top_label_text: "Energie Verbruik",
+        max_value: 5000,
         entity_primary: "",
         unit_primary: "W",
         decimals_primary: 0,
-        entity_secondary: "",
-        unit_secondary: "kWh",
-        decimals_secondary: 2,
-        start_color: "#0000ff",
-        stop_2: 0.38, color_2: "#008000",
-        stop_3: 0.57, color_3: "#ff007f",
-        stop_4: 0.72, color_4: "#000033",
-        stop_5: 0.89, color_5: "#cc3300",
+        show_trend: true,
+        start_color: "#00ff00",
+        stop_5: 0.9, color_5: "#ff0000"
       };
     }
 
@@ -46,17 +42,13 @@
 
     set hass(h) {
       if (!this._config) { this._hass = h; return; }
-      const ent1 = this._config.entity_primary;
-      const ent2 = this._config.entity_secondary;
-      const changed = (oldH, newH, id) => id && oldH?.states[id]?.state !== newH?.states[id]?.state;
+      const c = this._config;
+      const ids = [c.entity_primary, c.entity_secondary, c.entity_min, c.entity_max];
       
-      const updateNeeded = changed(this._hass, h, ent1) || changed(this._hass, h, ent2);
+      const changed = ids.some(id => id && this._hass?.states[id]?.state !== h.states[id]?.state);
       this._hass = h;
-      if (updateNeeded) this._updateValues();
+      if (changed) this._updateValues();
     }
-
-    getCardSize() { return 4; }
-    getGridOptions() { return { columns: 4, rows: 4, min_columns: 2, min_rows: 2 }; }
 
     _clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
     _toRad(d) { return (d * Math.PI) / 180; }
@@ -79,26 +71,23 @@
       t = this._clamp(t, 0, 1);
       for (let i = 0; i < stops.length - 1; i++) {
         const [pa, ca] = stops[i], [pb, cb] = stops[i + 1];
-        if (t >= pa && t <= pb) {
-          return this._lerpColor(ca, cb, (t - pa) / (pb - pa || 1e-6));
-        }
+        if (t >= pa && t <= pb) return this._lerpColor(ca, cb, (t - pa) / (pb - pa || 1e-6));
       }
       return stops[stops.length - 1][1];
     }
 
     _buildDOM() {
       const c = this._config;
-      
       const R = 80, W = 7, cx = 130, cy = 130;
       const circumference = 2 * Math.PI * R;
       this._circumference = circumference;
 
       const stops = [
-        [0.00, c.start_color],
-        [c.stop_2, c.color_2],
-        [c.stop_3, c.color_3],
-        [c.stop_4, c.color_4],
-        [c.stop_5, c.color_5]
+        [0.0, c.start_color || "#0000ff"],
+        [c.stop_2 || 0.25, c.color_2 || "#00ff00"],
+        [c.stop_3 || 0.50, c.color_3 || "#ffff00"],
+        [c.stop_4 || 0.75, c.color_4 || "#ff7f00"],
+        [c.stop_5 || 1.0, c.color_5 || "#ff0000"]
       ].sort((a,b) => a[0] - b[0]);
       this._currentStops = stops;
 
@@ -110,37 +99,14 @@
         gradientPaths += `<path d="M ${x0} ${y0} A ${R} ${R} 0 0 1 ${x1} ${y1}" fill="none" stroke="${this._colorAtStops(stops, i / 140)}" stroke-width="${W}" />`;
       }
 
-      // ===================================================================
-      // ✏️ TEKST INSTELLINGEN
-      // ===================================================================
-      
-      const titleText = c.top_label_text || "";
-      
-      // 1. Titel (Boven)
-      let topFontSize = 34;         
-      const topFontWeight = "300";  
-
-      // 2. Hoofdwaarde (Midden)
-      const val1FontSize = "24";    
-      const val1FontWeight = "300"; 
-
-      // 3. Subwaarde (Onder)
-      const val2FontSize = "24";    
-      const val2FontWeight = "300"; 
-
-      // ===================================================================
-
-      if (titleText.length > 12) topFontSize = 28 * (12 / titleText.length);
-      topFontSize = Math.max(topFontSize, 14); 
-
       this.shadowRoot.innerHTML = `
         <style>
           :host { display: block; width: 100%; height: 100%; }
           ha-card { background: var(--card-background-color); border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; width:100%; height:100%; box-sizing: border-box; padding: 12px; overflow: hidden; }
           .wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
           svg { width: 100%; height: 100%; aspect-ratio: 1 / 1; display: block; max-width: 100%; overflow: visible; }
-          /* FIX: fill is nu hard #ffffff in plaats van var(--primary-text-color) */
           text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: #ffffff; }
+          .corner { font-size: 14px; fill: rgba(255,255,255,0.6); font-weight: 400; }
           #mask-circle { transition: stroke-dashoffset 0.5s ease-out; }
         </style>
         <ha-card>
@@ -153,16 +119,20 @@
                     transform="rotate(-90 ${cx} ${cy})" />
                 </mask>
               </defs>
-              <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#222222" stroke-width="${W}" />
+              <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="rgba(255, 255, 255, 0.12)" stroke-width="${W}" />
               <g mask="url(#m)">${gradientPaths}</g>
               <circle id="start-cap" cx="${cx}" cy="${cy - R}" r="${W / 2}" fill="${stops[0][1]}" />
               <g id="end-cap-group" style="transform-origin: ${cx}px ${cy}px; transition: transform 0.5s ease-out;">
                 <circle id="end-cap" cx="${cx}" cy="${cy - R}" r="${W / 2}" fill="${stops[0][1]}" style="transition: fill 0.5s ease-out;" />
               </g>
               
-              <text x="${cx}" y="${cy - R - 32}" font-size="${topFontSize}" font-weight="${topFontWeight}" text-anchor="middle" dominant-baseline="middle">${titleText}</text>
-              <text id="val1" x="${cx}" y="${cy - 4}" font-size="${val1FontSize}" text-anchor="middle" font-weight="${val1FontWeight}">--</text>
-              <text id="val2" x="${cx}" y="${cy + 24}" font-size="${val2FontSize}" text-anchor="middle" font-weight="${val2FontWeight}"></text>
+              <text x="${cx}" y="${cy - R - 32}" font-size="34" font-weight="300" text-anchor="middle">${c.top_label_text || ""}</text>
+              <text id="val1" x="${cx}" y="${cy - 4}" font-size="24" text-anchor="middle" font-weight="300">--</text>
+              <text id="trend" x="${cx + 50}" y="${cy - 4}" font-size="18" text-anchor="start" font-weight="600"></text>
+              <text id="val2" x="${cx}" y="${cy + 24}" font-size="24" text-anchor="middle" font-weight="300"></text>
+              
+              <text id="min-val" x="10" y="250" class="corner" text-anchor="start"></text>
+              <text id="max-val" x="250" y="250" class="corner" text-anchor="end"></text>
             </svg>
           </div>
         </ha-card>
@@ -174,7 +144,10 @@
         endG: this.shadowRoot.getElementById("end-cap-group"),
         endC: this.shadowRoot.getElementById("end-cap"),
         v1: this.shadowRoot.getElementById("val1"),
-        v2: this.shadowRoot.getElementById("val2")
+        v2: this.shadowRoot.getElementById("val2"),
+        trend: this.shadowRoot.getElementById("trend"),
+        min: this.shadowRoot.getElementById("min-val"),
+        max: this.shadowRoot.getElementById("max-val")
       };
     }
 
@@ -185,17 +158,39 @@
       const val1 = Number(s1.state.replace(",", ".")) || 0;
       const frac = this._clamp(val1 / (Number(c.max_value) || 100), 0, 1);
       
+      // Trend logica
+      if (c.show_trend && this._lastValue !== null) {
+        const diff = val1 - this._lastValue;
+        const threshold = val1 * 0.005; // 0.5% buffer
+        if (Math.abs(diff) > threshold) {
+           this._elements.trend.textContent = diff > 0 ? "↑" : "↓";
+           this._elements.trend.style.fill = diff > 0 ? "#00ff00" : "#ff4444";
+        }
+      } else {
+        this._elements.trend.textContent = "";
+      }
+      this._lastValue = val1;
+
       this._elements.v1.textContent = `${val1.toFixed(c.decimals_primary)} ${c.unit_primary || ""}`;
       
+      // Subwaarde
       if (c.entity_secondary && h.states[c.entity_secondary]) {
         const val2 = Number(h.states[c.entity_secondary].state.replace(",", ".")) || 0;
         this._elements.v2.textContent = `${val2.toFixed(c.decimals_secondary)} ${c.unit_secondary || ""}`;
-        this._elements.v2.style.display = "block";
         this._elements.v1.setAttribute("y", "124");
+        this._elements.trend.setAttribute("y", "124");
       } else {
-        this._elements.v2.style.display = "none";
+        this._elements.v2.textContent = "";
         this._elements.v1.setAttribute("y", "138");
+        this._elements.trend.setAttribute("y", "138");
       }
+
+      // Min / Max hoeken
+      const getVal = (id) => h.states[id] ? Number(h.states[id].state.replace(",",".")) : null;
+      const minV = getVal(c.entity_min);
+      const maxV = getVal(c.entity_max);
+      this._elements.min.textContent = minV !== null ? `↓ ${minV}` : "";
+      this._elements.max.textContent = maxV !== null ? `↑ ${maxV}` : "";
 
       this._elements.mask.style.strokeDashoffset = this._circumference - (frac * this._circumference);
       this._elements.start.style.opacity = frac <= 0.001 ? "0" : "1";
@@ -206,59 +201,38 @@
   }
 
   class DonutCardEditor extends HTMLElement {
-    setConfig(config) { 
-      this._config = config; 
-      if (this._f) this._f.data = config; 
-      this._updateUI(); 
-    }
-    
-    set hass(h) { 
-      this._hass = h; 
-      if (!this._f) this._build(); 
-      this._f.hass = h; 
-    }
+    setConfig(config) { this._config = config; if (this._f) this._f.data = config; this._updateUI(); }
+    set hass(h) { this._hass = h; if (!this._f) this._build(); this._f.hass = h; }
 
     _updateUI() {
       if (!this.shadowRoot || !this._config) return;
       const c = this._config;
-      
-      const startColor = this.shadowRoot.querySelector('[data-key="start_color"]');
-      if (startColor) startColor.value = c.start_color || '#0000ff';
-
+      this.shadowRoot.querySelector('[data-key="start_color"]').value = c.start_color || '#0000ff';
       [2,3,4,5].forEach(i => {
-        const slider = this.shadowRoot.querySelector(`[data-key="stop_${i}"]`);
-        const colorBox = this.shadowRoot.querySelector(`[data-key="color_${i}"]`);
-        const percText = this.shadowRoot.getElementById(`perc_${i}`);
         const val = Math.round((c['stop_'+i] || 0) * 100);
-
-        if (slider) slider.value = val;
-        if (colorBox) colorBox.value = c['color_'+i] || '#ffffff';
-        if (percText) percText.textContent = val + '%';
+        this.shadowRoot.querySelector(`[data-key="stop_${i}"]`).value = val;
+        this.shadowRoot.querySelector(`[data-key="color_${i}"]`).value = c['color_'+i] || '#ffffff';
+        this.shadowRoot.getElementById(`perc_${i}`).textContent = val + '%';
       });
     }
     
     _build() {
-      if (!this.shadowRoot) this.attachShadow({ mode: "open" });
-      this.shadowRoot.innerHTML = ''; 
-
+      this.attachShadow({ mode: "open" });
       const wrapper = document.createElement("div");
-      wrapper.style.display = "flex";
-      wrapper.style.flexDirection = "column";
-      wrapper.style.gap = "24px";
-
-      const c = this._config || {};
+      wrapper.style.cssText = "display:flex; flex-direction:column; gap:20px;";
 
       const f = document.createElement("ha-form");
       f.schema = [
-        { name: "top_label_text", label: "Titel (schaalt automatisch)", selector: { text: {} } },
-        { name: "max_value", label: "Max Waarde", selector: { number: { mode: "box" } } },
+        { name: "top_label_text", label: "Titel", selector: { text: {} } },
+        { name: "max_value", label: "Ring Maximaal", selector: { number: { mode: "box" } } },
         { name: "entity_primary", label: "Hoofd Entiteit", selector: { entity: {} } },
-        { type: "grid", name: "", schema: [{ name: "unit_primary", label: "Eenheid (W, kWh...)", selector: { text: {} } }, { name: "decimals_primary", label: "Decimalen", selector: { number: { mode: "box" } } }] },
+        { type: "grid", name: "", schema: [{ name: "unit_primary", label: "Eenheid", selector: { text: {} } }, { name: "decimals_primary", label: "Decimalen", selector: { number: { mode: "box" } } }] },
+        { name: "show_trend", label: "Toon Trend Pijl (↑/↓)", selector: { boolean: {} } },
         { name: "entity_secondary", label: "Sub Entiteit (Optioneel)", selector: { entity: {} } },
-        { type: "grid", name: "", schema: [{ name: "unit_secondary", label: "Eenheid (W, kWh...)", selector: { text: {} } }, { name: "decimals_secondary", label: "Decimalen", selector: { number: { mode: "box" } } }] }
+        { type: "grid", name: "", schema: [{ name: "entity_min", label: "Min Entiteit (Hoek L)", selector: { entity: {} } }, { name: "entity_max", label: "Max Entiteit (Hoek R)", selector: { entity: {} } }] }
       ];
       f.computeLabel = s => s.label;
-      f.data = c;
+      f.data = this._config;
       f.addEventListener("value-changed", ev => {
         this._config = { ...this._config, ...ev.detail.value };
         this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
@@ -267,75 +241,29 @@
       const cp = document.createElement("div");
       cp.innerHTML = `
         <style>
-          .cp-panel { background: var(--secondary-background-color, rgba(150,150,150,0.08)); padding: 20px; border-radius: 12px; margin-top: -8px;}
-          .cp-title { font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; font-size: 16px; color: var(--primary-text-color); }
-          
-          .cp-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 16px; }
-          .cp-row-start { justify-content: flex-start; margin-bottom: 24px; }
-          
-          .cp-slider-container { flex-grow: 1; display: flex; align-items: center; }
-          .cp-slider { width: 100%; accent-color: var(--primary-color, #03a9f4); cursor: pointer; }
-          
-          .cp-right-group { display: flex; align-items: center; gap: 12px; width: 85px; justify-content: flex-start; }
-          
-          .cp-color { 
-            width: 36px; height: 36px; 
-            border: 2px solid rgba(128,128,128,0.2); 
-            border-radius: 50%; 
-            cursor: pointer; padding: 0; background: none; 
-            -webkit-appearance: none; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-            transition: transform 0.2s ease;
-          }
-          .cp-color:hover { transform: scale(1.05); }
+          .cp-panel { background: var(--secondary-background-color, rgba(150,150,150,0.1)); padding: 15px; border-radius: 12px; }
+          .cp-row { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; }
+          .cp-color { width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(128,128,128,0.3); cursor: pointer; -webkit-appearance: none; padding: 0; }
           .cp-color::-webkit-color-swatch-wrapper { padding: 0; }
           .cp-color::-webkit-color-swatch { border: none; border-radius: 50%; }
-          .cp-color::-moz-color-swatch { border: none; border-radius: 50%; }
-          
-          .cp-label { font-size: 14px; font-weight: 500; color: var(--primary-text-color); }
+          .cp-label { font-size: 13px; font-weight: 500; width: 60px; }
         </style>
         <div class="cp-panel">
-          <div class="cp-title">🌈 Kleuren Verloop</div>
-          
-          <div class="cp-row cp-row-start">
-            <input type="color" class="cp-color" data-key="start_color" value="#0000ff">
-            <span class="cp-label">Start (0%)</span>
-          </div>
-          
-          ${[2,3,4,5].map(i => `
-            <div class="cp-row">
-              <div class="cp-slider-container">
-                <input type="range" class="cp-slider" data-key="stop_${i}" min="1" max="99" value="0">
-              </div>
-              <div class="cp-right-group">
-                <input type="color" class="cp-color" data-key="color_${i}" value="#ffffff">
-                <span id="perc_${i}" class="cp-label">0%</span>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      `;
+          <strong>Kleurenverloop</strong>
+          <div class="cp-row" style="margin-top:10px;"><input type="color" class="cp-color" data-key="start_color"><span class="cp-label">Start (0%)</span></div>
+          ${[2,3,4,5].map(i => `<div class="cp-row"><input type="range" style="flex:1" data-key="stop_${i}" min="1" max="100"><input type="color" class="cp-color" data-key="color_${i}"><span id="perc_${i}" class="cp-label">0%</span></div>`).join('')}
+        </div>`;
 
-      cp.querySelectorAll('input[type="color"]').forEach(el => {
-        el.addEventListener('input', e => {
-          this._config = { ...this._config, [e.target.dataset.key]: e.target.value };
-          this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
-        });
-      });
-      cp.querySelectorAll('input[type="range"]').forEach(el => {
-        el.addEventListener('input', e => {
-          const val = parseInt(e.target.value, 10);
-          cp.querySelector(`#perc_${e.target.dataset.key.split('_')[1]}`).textContent = val + '%';
-          this._config = { ...this._config, [e.target.dataset.key]: val / 100 };
-          this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
-        });
-      });
+      cp.querySelectorAll('input').forEach(el => el.addEventListener('input', e => {
+        const k = e.target.dataset.key;
+        const v = e.target.type === 'range' ? e.target.value / 100 : e.target.value;
+        this._config = { ...this._config, [k]: v };
+        this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
+      }));
 
-      wrapper.appendChild(f);
-      wrapper.appendChild(cp);
-      this.shadowRoot.appendChild(wrapper);
+      wrapper.append(f, cp);
+      this.shadowRoot.append(wrapper);
       this._f = f;
-      
       this._updateUI();
     }
   }
@@ -344,12 +272,5 @@
   customElements.define(TAG, DonutCard);
 
   window.customCards = window.customCards || [];
-  if (!window.customCards.some(c => c.type === "donut-card")) {
-    window.customCards.push({ 
-      type: "donut-card", 
-      name: "Donut Card", 
-      description: "Algemene donut kaart met sliders en custom tekst", 
-      preview: true 
-    });
-  }
+  window.customCards.push({ type: "donut-card", name: "Donut Card Pro", preview: true });
 })();
