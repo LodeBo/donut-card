@@ -1,12 +1,13 @@
 /*!
- * 🟢 Donut Card v20.0.0 (The Typography Update)
+ * 🟢 Donut Card v20.0.1 (The Bugfix Update)
+ * - Fix: Syntax-fout opgelost in de DonutCardEditor (ontbrekend '=' teken).
  * - Fix: Tekstkleuren zijn niet meer hardcoded wit, maar volgen 100% dynamisch het Home Assistant thema via 'currentColor'.
  * - Fix: Sub-entiteit maakt nu gebruik van de secundaire thema-kleur.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "20.0.0";
+  const VERSION = "20.0.1";
 
   console.info(
     `%c 🟢 DONUT-CARD %c v${VERSION} `,
@@ -213,7 +214,7 @@
 
   class DonutCardEditor extends HTMLElement {
     setConfig(config) { this._config = config; if (this._f) this._f.data = config; this._updateUI(); }
-    set hass(h) { this._hass h; if (!this._f) this._build(); this._f.hass = h; }
+    set hass(h) { this._hass = h; if (!this._f) this._build(); this._f.hass = h; }
 
     _updateUI() {
       if (!this.shadowRoot || !this._config) return;
