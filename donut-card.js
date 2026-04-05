@@ -1,12 +1,12 @@
 /*!
- * 🟢 Donut Card v18.0.1 (Theme Text Fix Only)
+ * 🟢 Donut Card v21.0.0 (Theme Text Fix Only)
  * - Fix: Tekstkleuren nemen dynamisch het Home Assistant thema over.
  * - Note: Exacte kopie van jouw werkende v18.0.0 code, verder 100% ongewijzigd.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "18.0.1";
+  const VERSION = "21.0.0";
 
   console.info(
     `%c 🟢 DONUT-CARD %c v${VERSION} `,
