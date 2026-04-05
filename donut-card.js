@@ -1,12 +1,12 @@
 /*!
- * 🟢 Donut Card v28.0.0 (The Final Idiot Fix)
+ * 🟢 Donut Card v29.0.0 (The Final Idiot Fix)
  * - Fix: Trendpijl in het midden gebruikt eindelijk de logische kleuren (Omhoog = Groen, Omlaag = Rood).
  * - Verder 100% identiek aan v27.0.0 (dikke letters, transparantie fix, etc.).
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "28.0.0";
+  const VERSION = "29.0.0";
 
   console.info(
     `%c 🟢 DONUT-CARD %c v${VERSION} `,
