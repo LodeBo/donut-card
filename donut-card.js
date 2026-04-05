@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Card v15.1.1 (The Theme Update)
+ * 🟢 Donut Card v15.1.2 (The Theme Update)
  * - Toegevoegd: Optionele Min/Max entiteiten in de hoeken met gekleurde driehoekjes (▼ / ▲).
  * - Toegevoegd: Trend-indicator naast de hoofdwaarde met buffer.
  * - Fix: Styling aangepast zodat transparante Home Assistant thema's perfect worden overgenomen.
