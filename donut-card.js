@@ -1,14 +1,12 @@
 /*!
- * 🟢 Donut Card v18.0.0 (The Theme Update)
- * - Toegevoegd: Optionele Min/Max entiteiten in de hoeken met gekleurde driehoekjes (▼ / ▲).
- * - Toegevoegd: Trend-indicator naast de hoofdwaarde met buffer.
- * - Fix: Styling aangepast zodat transparante Home Assistant thema's perfect worden overgenomen.
- * - Nieuw: VERSION variabele en dynamische console badge.
+ * 🟢 Donut Card v20.0.0 (The Typography Update)
+ * - Fix: Tekstkleuren zijn niet meer hardcoded wit, maar volgen 100% dynamisch het Home Assistant thema via 'currentColor'.
+ * - Fix: Sub-entiteit maakt nu gebruik van de secundaire thema-kleur.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "18.0.0";
+  const VERSION = "20.0.0";
 
   console.info(
     `%c 🟢 DONUT-CARD %c v${VERSION} `,
@@ -110,11 +108,15 @@
       this.shadowRoot.innerHTML = `
         <style>
           :host { display: block; width: 100%; height: 100%; }
-          ha-card { display:flex; align-items:center; justify-content:center; width:100%; height:100%; box-sizing: border-box; padding: 12px; overflow: hidden; }
+          ha-card { display:flex; align-items:center; justify-content:center; width:100%; height:100%; box-sizing: border-box; padding: 12px; overflow: hidden; color: var(--primary-text-color, currentColor); }
           .wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
           svg { width: 100%; height: 100%; aspect-ratio: 1 / 1; display: block; max-width: 100%; overflow: visible; }
-          text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: var(--primary-text-color, #ffffff); }
+          
+          /* Tekst styling neemt dynamisch het actieve thema over */
+          text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: currentColor; }
+          .secondary { fill: var(--secondary-text-color, currentColor); opacity: 0.7; }
           .corner { font-size: 15px; font-weight: 400; }
+          
           #mask-circle { transition: stroke-dashoffset 0.5s ease-out; }
         </style>
         <ha-card>
@@ -137,7 +139,7 @@
               <text x="${cx}" y="${cy - R - 32}" font-size="30" font-weight="400" text-anchor="middle">${c.top_label_text || ""}</text>
               <text id="val1" x="${cx}" y="${cy - 4}" font-size="24" text-anchor="middle" font-weight="300">--</text>
               <text id="trend" x="${cx + 55}" y="${cy - 4}" font-size="16" text-anchor="start" font-weight="600"></text>
-              <text id="val2" x="${cx}" y="${cy + 24}" font-size="22" text-anchor="middle" font-weight="300" fill="var(--secondary-text-color, #cccccc)"></text>
+              <text id="val2" x="${cx}" y="${cy + 24}" font-size="22" text-anchor="middle" font-weight="300" class="secondary"></text>
               
               <text id="min-val" x="10" y="245" class="corner" text-anchor="start"></text>
               <text id="max-val" x="250" y="245" class="corner" text-anchor="end"></text>
@@ -211,7 +213,7 @@
 
   class DonutCardEditor extends HTMLElement {
     setConfig(config) { this._config = config; if (this._f) this._f.data = config; this._updateUI(); }
-    set hass(h) { this._hass = h; if (!this._f) this._build(); this._f.hass = h; }
+    set hass(h) { this._hass h; if (!this._f) this._build(); this._f.hass = h; }
 
     _updateUI() {
       if (!this.shadowRoot || !this._config) return;
