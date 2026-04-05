@@ -7,7 +7,7 @@
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "31.0.0";
+  const VERSION = "32.0.0";
 
   console.info(
     `%c 🟢 DONUT-CARD %c v${VERSION} `,
