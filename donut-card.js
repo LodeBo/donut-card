@@ -1,12 +1,20 @@
 /*!
- * 🟢 Donut Card v15.1.0 (The Theme Update)
+ * 🟢 Donut Card v18.0.0 (The Theme Update)
  * - Toegevoegd: Optionele Min/Max entiteiten in de hoeken met gekleurde driehoekjes (▼ / ▲).
  * - Toegevoegd: Trend-indicator naast de hoofdwaarde met buffer.
  * - Fix: Styling aangepast zodat transparante Home Assistant thema's perfect worden overgenomen.
+ * - Nieuw: VERSION variabele en dynamische console badge.
  */
 
 (() => {
   const TAG = "donut-card";
+  const VERSION = "18.0.0";
+
+  console.info(
+    `%c 🟢 DONUT-CARD %c v${VERSION} `,
+    'color: white; background: #03a9f4; font-weight: 700; border-radius: 4px 0 0 4px; padding: 2px 4px;',
+    'color: #03a9f4; background: white; font-weight: 700; border-radius: 0 4px 4px 0; padding: 2px 4px;'
+  );
 
   class DonutCard extends HTMLElement {
     constructor() {
