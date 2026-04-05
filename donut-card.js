@@ -1,13 +1,12 @@
 /*!
- * 🟢 Donut Card v19.0.0 (The Symmetry Update)
- * - Fix: Asymmetrische tekst-pijlen vervangen door perfect symmetrische geometrische driehoeken (▼ / ▲).
- * - Fix: Trend-indicator in het midden gebruikt nu ook de strakke driehoekjes.
- * - Tweaked: Driehoeken in de hoeken groot gehouden (28px) mét behoud van de dynamische ring-kleuren.
+ * 🟢 Donut Card v15.1.0 (The Theme Update)
+ * - Toegevoegd: Optionele Min/Max entiteiten in de hoeken met gekleurde driehoekjes (▼ / ▲).
+ * - Toegevoegd: Trend-indicator naast de hoofdwaarde met buffer.
+ * - Fix: Styling aangepast zodat transparante Home Assistant thema's perfect worden overgenomen.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "19.0.0";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -16,7 +15,7 @@
       this._hass = null;
       this._config = null;
       this._elements = {};
-      this._lastValue = null; 
+      this._lastValue = null;
     }
 
     static getConfigElement() { return document.createElement("donut-card-editor"); }
@@ -24,7 +23,7 @@
     static getStubConfig() {
       return {
         type: "custom:donut-card",
-        top_label_text: "Energie Verbruik",
+        top_label_text: "Energie",
         max_value: 5000,
         entity_primary: "",
         unit_primary: "W",
@@ -103,11 +102,11 @@
       this.shadowRoot.innerHTML = `
         <style>
           :host { display: block; width: 100%; height: 100%; }
-          ha-card { background: var(--card-background-color); border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; width:100%; height:100%; box-sizing: border-box; padding: 12px; overflow: hidden; }
+          ha-card { display:flex; align-items:center; justify-content:center; width:100%; height:100%; box-sizing: border-box; padding: 12px; overflow: hidden; }
           .wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
           svg { width: 100%; height: 100%; aspect-ratio: 1 / 1; display: block; max-width: 100%; overflow: visible; }
-          text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: #ffffff; }
-          .corner { font-size: 24px; fill: rgba(255,255,255,0.95); font-weight: 500; }
+          text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: var(--primary-text-color, #ffffff); }
+          .corner { font-size: 15px; font-weight: 400; }
           #mask-circle { transition: stroke-dashoffset 0.5s ease-out; }
         </style>
         <ha-card>
@@ -120,20 +119,20 @@
                     transform="rotate(-90 ${cx} ${cy})" />
                 </mask>
               </defs>
-              <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="rgba(255, 255, 255, 0.12)" stroke-width="${W}" />
+              <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="rgba(150, 150, 150, 0.15)" stroke-width="${W}" />
               <g mask="url(#m)">${gradientPaths}</g>
               <circle id="start-cap" cx="${cx}" cy="${cy - R}" r="${W / 2}" fill="${stops[0][1]}" />
               <g id="end-cap-group" style="transform-origin: ${cx}px ${cy}px; transition: transform 0.5s ease-out;">
                 <circle id="end-cap" cx="${cx}" cy="${cy - R}" r="${W / 2}" fill="${stops[0][1]}" style="transition: fill 0.5s ease-out;" />
               </g>
               
-              <text x="${cx}" y="${cy - R - 32}" font-size="34" font-weight="300" text-anchor="middle">${c.top_label_text || ""}</text>
+              <text x="${cx}" y="${cy - R - 32}" font-size="30" font-weight="400" text-anchor="middle">${c.top_label_text || ""}</text>
               <text id="val1" x="${cx}" y="${cy - 4}" font-size="24" text-anchor="middle" font-weight="300">--</text>
-              <text id="trend" x="${cx + 50}" y="${cy - 4}" font-size="22" text-anchor="start" font-weight="900"></text>
-              <text id="val2" x="${cx}" y="${cy + 24}" font-size="24" text-anchor="middle" font-weight="300"></text>
+              <text id="trend" x="${cx + 55}" y="${cy - 4}" font-size="16" text-anchor="start" font-weight="600"></text>
+              <text id="val2" x="${cx}" y="${cy + 24}" font-size="22" text-anchor="middle" font-weight="300" fill="var(--secondary-text-color, #cccccc)"></text>
               
-              <text id="min-val" x="0" y="255" class="corner" text-anchor="start"></text>
-              <text id="max-val" x="260" y="255" class="corner" text-anchor="end"></text>
+              <text id="min-val" x="10" y="245" class="corner" text-anchor="start"></text>
+              <text id="max-val" x="250" y="245" class="corner" text-anchor="end"></text>
             </svg>
           </div>
         </ha-card>
@@ -159,13 +158,13 @@
       const val1 = Number(s1.state.replace(",", ".")) || 0;
       const frac = this._clamp(val1 / (Number(c.max_value) || 100), 0, 1);
       
-      // Nu met driehoekjes voor de trend pijl
+      // Trend logica met gekleurde driehoek
       if (c.show_trend && this._lastValue !== null) {
         const diff = val1 - this._lastValue;
-        const threshold = val1 * 0.005; 
+        const threshold = val1 * 0.005; // 0.5% buffer
         if (Math.abs(diff) > threshold) {
            this._elements.trend.textContent = diff > 0 ? "▲" : "▼";
-           this._elements.trend.style.fill = diff > 0 ? "#00ff00" : "#ff4444";
+           this._elements.trend.style.fill = diff > 0 ? "#ff4444" : "#00ff00";
         }
       } else {
         this._elements.trend.textContent = "";
@@ -174,27 +173,25 @@
 
       this._elements.v1.textContent = `${val1.toFixed(c.decimals_primary)} ${c.unit_primary || ""}`;
       
+      // Subwaarde
       if (c.entity_secondary && h.states[c.entity_secondary]) {
         const val2 = Number(h.states[c.entity_secondary].state.replace(",", ".")) || 0;
         this._elements.v2.textContent = `${val2.toFixed(c.decimals_secondary)} ${c.unit_secondary || ""}`;
-        this._elements.v1.setAttribute("y", "124");
-        this._elements.trend.setAttribute("y", "124");
+        this._elements.v1.setAttribute("y", "120");
+        this._elements.trend.setAttribute("y", "120");
       } else {
         this._elements.v2.textContent = "";
         this._elements.v1.setAttribute("y", "138");
         this._elements.trend.setAttribute("y", "138");
       }
 
+      // Min / Max hoeken met styling
       const getVal = (id) => h.states[id] ? Number(h.states[id].state.replace(",",".")) : null;
       const minV = getVal(c.entity_min);
       const maxV = getVal(c.entity_max);
       
-      const cMin = c.start_color || "#0000ff";
-      const cMax = c.color_5 || "#ff0000";
-
-      // Grote (28px) driehoekjes met behoud van kleur!
-      this._elements.min.innerHTML = minV !== null ? `<tspan fill="${cMin}" style="font-size: 28px;">▼</tspan> ${minV}` : "";
-      this._elements.max.innerHTML = maxV !== null ? `<tspan fill="${cMax}" style="font-size: 28px;">▲</tspan> ${maxV}` : "";
+      this._elements.min.innerHTML = minV !== null ? `<tspan fill="#00ff00">▼</tspan> ${minV}` : "";
+      this._elements.max.innerHTML = maxV !== null ? `<tspan fill="#ff4444">▲</tspan> ${maxV}` : "";
 
       this._elements.mask.style.strokeDashoffset = this._circumference - (frac * this._circumference);
       this._elements.start.style.opacity = frac <= 0.001 ? "0" : "1";
@@ -233,9 +230,7 @@
         { type: "grid", name: "", schema: [{ name: "unit_primary", label: "Eenheid", selector: { text: {} } }, { name: "decimals_primary", label: "Decimalen", selector: { number: { mode: "box" } } }] },
         { name: "show_trend", label: "Toon Trend Pijl (▲/▼)", selector: { boolean: {} } },
         { name: "entity_secondary", label: "Sub Entiteit (Optioneel)", selector: { entity: {} } },
-        { type: "grid", name: "", schema: [{ name: "unit_secondary", label: "Eenheid", selector: { text: {} } }, { name: "decimals_secondary", label: "Decimalen", selector: { number: { mode: "box" } } }] },
-        { name: "entity_min", label: "Min Entiteit (Linksonder)", selector: { entity: {} } },
-        { name: "entity_max", label: "Max Entiteit (Rechtsonder)", selector: { entity: {} } }
+        { type: "grid", name: "", schema: [{ name: "entity_min", label: "Min Entiteit (Hoek L)", selector: { entity: {} } }, { name: "entity_max", label: "Max Entiteit (Hoek R)", selector: { entity: {} } }] }
       ];
       f.computeLabel = s => s.label;
       f.data = this._config;
@@ -278,7 +273,5 @@
   customElements.define(TAG, DonutCard);
 
   window.customCards = window.customCards || [];
-  if (!window.customCards.some(c => c.type === "donut-card")) {
-    window.customCards.push({ type: "donut-card", name: "Donut Card Pro", preview: true });
-  }
+  window.customCards.push({ type: "donut-card", name: "Donut Card Pro", preview: true });
 })();
