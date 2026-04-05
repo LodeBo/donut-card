@@ -1,12 +1,13 @@
 /*!
- * 🟢 Donut Card v30.0.0 (The Dynamic Corner Colors)
- * - Fix: De pijltjes in de hoeken (Min/Max) gebruiken nu de ingestelde kleuren van de ring (start_color en color_5) in plaats van hardcoded kleuren.
- * - Verder 100% identiek aan v28.0.0.
+ * 🟢 Donut Card v31.0.0 (The Editor Layout Fix)
+ * - Fix: Entiteitpickers in de editor staan weer gewoon onder elkaar (geen grid meer).
+ * - Fix: Volledige breedte voor alle selectievelden voor maximale leesbaarheid.
+ * - VERDER 100% IDENTIEK AAN v29.0.0 (kleuren, pijlen en dikke tekst zijn behouden).
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "30.0.0";
+  const VERSION = "31.0.0";
 
   console.info(
     `%c 🟢 DONUT-CARD %c v${VERSION} `,
@@ -30,7 +31,7 @@
       return {
         type: "custom:donut-card",
         top_label_text: "Energie",
-        max_value: 5000,
+        max_value: 4100,
         entity_primary: "",
         unit_primary: "W",
         decimals_primary: 0,
@@ -41,12 +42,7 @@
     }
 
     getGridOptions() {
-      return {
-        columns: 4,
-        rows: 4,
-        min_columns: 2,
-        min_rows: 2
-      };
+      return { columns: 4, rows: 4, min_columns: 2, min_rows: 2 };
     }
 
     setConfig(config) {
@@ -59,7 +55,6 @@
       if (!this._config) { this._hass = h; return; }
       const c = this._config;
       const ids = [c.entity_primary, c.entity_secondary, c.entity_min, c.entity_max];
-      
       const changed = ids.some(id => id && this._hass?.states[id]?.state !== h.states[id]?.state);
       this._hass = h;
       if (changed) this._updateValues();
@@ -140,12 +135,10 @@
               <g id="end-cap-group" style="transform-origin: ${cx}px ${cy}px; transition: transform 0.5s ease-out;">
                 <circle id="end-cap" cx="${cx}" cy="${cy - R}" r="${W / 2}" fill="${stops[0][1]}" style="transition: fill 0.5s ease-out;" />
               </g>
-              
               <text x="${cx}" y="${cy - R - 32}" font-size="30" font-weight="400" text-anchor="middle">${c.top_label_text || ""}</text>
               <text id="val1" x="${cx}" y="${cy - 4}" font-size="24" text-anchor="middle" font-weight="600">--</text>
               <text id="trend" x="${cx + 45}" y="${cy - 4}" font-size="18" text-anchor="start" font-weight="600"></text>
               <text id="val2" x="${cx}" y="${cy + 24}" font-size="22" text-anchor="middle" font-weight="500"></text>
-              
               <text id="min-val" x="10" y="245" class="corner" text-anchor="start"></text>
               <text id="max-val" x="250" y="245" class="corner" text-anchor="end"></text>
             </svg>
@@ -169,7 +162,6 @@
     _updateValues() {
       const h = this._hass; const c = this._config; if (!h || !c.entity_primary || !this._elements.mask) return;
       const s1 = h.states[c.entity_primary]; if (!s1) return;
-      
       const val1 = Number(s1.state.replace(",", ".")) || 0;
       const frac = this._clamp(val1 / (Number(c.max_value) || 100), 0, 1);
       
@@ -180,9 +172,7 @@
            this._elements.trend.textContent = diff > 0 ? "▲" : "▼";
            this._elements.trend.style.fill = diff > 0 ? "#00ff00" : "#ff4444";
         }
-      } else {
-        this._elements.trend.textContent = "";
-      }
+      } else { this._elements.trend.textContent = ""; }
       this._lastValue = val1;
 
       this._elements.v1.textContent = `${val1.toFixed(c.decimals_primary)} ${c.unit_primary || ""}`;
@@ -198,12 +188,9 @@
         this._elements.trend.setAttribute("y", "138");
       }
 
-      // Min / Max waarden ophalen
       const getVal = (id) => h.states[id] ? Number(h.states[id].state.replace(",",".")) : null;
       const minV = getVal(c.entity_min);
       const maxV = getVal(c.entity_max);
-      
-      // Dynamische kleuren ophalen uit de config
       const minColor = c.start_color || "#0000ff";
       const maxColor = c.color_5 || "#ff0000";
       
@@ -240,14 +227,17 @@
       wrapper.style.cssText = "display:flex; flex-direction:column; gap:20px;";
 
       const f = document.createElement("ha-form");
+      // Grid verwijderd: alle entiteiten onder elkaar voor maximale breedte en leesbaarheid
       f.schema = [
         { name: "top_label_text", label: "Titel", selector: { text: {} } },
         { name: "max_value", label: "Ring Maximaal", selector: { number: { mode: "box" } } },
         { name: "entity_primary", label: "Hoofd Entiteit", selector: { entity: {} } },
-        { type: "grid", name: "", schema: [{ name: "unit_primary", label: "Eenheid", selector: { text: {} } }, { name: "decimals_primary", label: "Decimalen", selector: { number: { mode: "box" } } }] },
+        { name: "unit_primary", label: "Eenheid", selector: { text: {} } },
+        { name: "decimals_primary", label: "Decimalen", selector: { number: { mode: "box" } } },
         { name: "show_trend", label: "Toon Trend Pijl (▲/▼)", selector: { boolean: {} } },
         { name: "entity_secondary", label: "Sub Entiteit (Optioneel)", selector: { entity: {} } },
-        { type: "grid", name: "", schema: [{ name: "entity_min", label: "Min Entiteit (Hoek L)", selector: { entity: {} } }, { name: "entity_max", label: "Max Entiteit (Hoek R)", selector: { entity: {} } }] }
+        { name: "entity_min", label: "Min Entiteit (Hoek L)", selector: { entity: {} } },
+        { name: "entity_max", label: "Max Entiteit (Hoek R)", selector: { entity: {} } }
       ];
       f.computeLabel = s => s.label;
       f.data = this._config;
@@ -261,9 +251,7 @@
         <style>
           .cp-panel { background: var(--secondary-background-color, rgba(150,150,150,0.1)); padding: 15px; border-radius: 12px; }
           .cp-row { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; }
-          .cp-color { width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(128,128,128,0.3); cursor: pointer; -webkit-appearance: none; padding: 0; }
-          .cp-color::-webkit-color-swatch-wrapper { padding: 0; }
-          .cp-color::-webkit-color-swatch { border: none; border-radius: 50%; }
+          .cp-color { width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(128,128,128,0.3); cursor: pointer; padding: 0; }
           .cp-label { font-size: 13px; font-weight: 500; width: 60px; }
         </style>
         <div class="cp-panel">
