@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Card v31.0.0 (The Editor Layout Fix)
+ * 🟢 Donut Card v32.0.0 (The Editor Layout Fix)
  * - Fix: Entiteitpickers in de editor staan weer gewoon onder elkaar (geen grid meer).
  * - Fix: Volledige breedte voor alle selectievelden voor maximale leesbaarheid.
  * - VERDER 100% IDENTIEK AAN v29.0.0 (kleuren, pijlen en dikke tekst zijn behouden).
