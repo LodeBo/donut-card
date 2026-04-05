@@ -1,14 +1,21 @@
 /*!
- * 🟢 Donut Card v15.1.2 (The Theme Update)
- * - Toegevoegd: Optionele Min/Max entiteiten in de hoeken met gekleurde driehoekjes (▼ / ▲).
- * - Toegevoegd: Trend-indicator naast de hoofdwaarde met buffer.
- * - Fix: Styling aangepast zodat transparante Home Assistant thema's perfect worden overgenomen.
+ * 🟢 Donut Card v21.0.0 (The Final Baseline)
+ * - Basis: Exact de werkende code met dikke pijlen en grote tekst.
+ * - Fix: Thema kleuren (currentColor) toegepast zonder grootte te wijzigen.
+ * - Fix: Trend pijl omhoog is nu groen, omlaag is rood.
+ * - Fix: getGridOptions toegevoegd om de Home Assistant grid-waarschuwing te verhelpen.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "15.1.1";
-  
+  const VERSION = "21.0.0";
+
+  console.info(
+    `%c 🟢 DONUT-CARD %c v${VERSION} `,
+    'color: white; background: #03a9f4; font-weight: 700; border-radius: 4px 0 0 4px; padding: 2px 4px;',
+    'color: #03a9f4; background: white; font-weight: 700; border-radius: 0 4px 4px 0; padding: 2px 4px;'
+  );
+
   class DonutCard extends HTMLElement {
     constructor() {
       super();
@@ -32,6 +39,16 @@
         show_trend: true,
         start_color: "#00ff00",
         stop_5: 0.9, color_5: "#ff0000"
+      };
+    }
+
+    // Dit vertelt Home Assistant dat de kaart het nieuwe grid ondersteunt (verbergt de waarschuwing)
+    static getGridOptions() {
+      return {
+        columns: 4,
+        rows: 4,
+        min_columns: 2,
+        min_rows: 2
       };
     }
 
@@ -103,11 +120,11 @@
       this.shadowRoot.innerHTML = `
         <style>
           :host { display: block; width: 100%; height: 100%; }
-          ha-card { display:flex; align-items:center; justify-content:center; width:100%; height:100%; box-sizing: border-box; padding: 12px; overflow: hidden; }
+          ha-card { display:flex; align-items:center; justify-content:center; width:100%; height:100%; box-sizing: border-box; padding: 12px; overflow: hidden; color: var(--primary-text-color, currentColor); }
           .wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
           svg { width: 100%; height: 100%; aspect-ratio: 1 / 1; display: block; max-width: 100%; overflow: visible; }
-          text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: var(--primary-text-color, #ffffff); }
-          .corner { font-size: 19px; font-weight: 400; }
+          text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: currentColor; }
+          .corner { font-size: 15px; font-weight: 400; }
           #mask-circle { transition: stroke-dashoffset 0.5s ease-out; }
         </style>
         <ha-card>
@@ -130,7 +147,7 @@
               <text x="${cx}" y="${cy - R - 32}" font-size="30" font-weight="400" text-anchor="middle">${c.top_label_text || ""}</text>
               <text id="val1" x="${cx}" y="${cy - 4}" font-size="24" text-anchor="middle" font-weight="300">--</text>
               <text id="trend" x="${cx + 55}" y="${cy - 4}" font-size="16" text-anchor="start" font-weight="600"></text>
-              <text id="val2" x="${cx}" y="${cy + 24}" font-size="22" text-anchor="middle" font-weight="300" fill="var(--secondary-text-color, #cccccc)"></text>
+              <text id="val2" x="${cx}" y="${cy + 24}" font-size="22" text-anchor="middle" font-weight="300" opacity="0.6"></text>
               
               <text id="min-val" x="10" y="245" class="corner" text-anchor="start"></text>
               <text id="max-val" x="250" y="245" class="corner" text-anchor="end"></text>
@@ -159,13 +176,13 @@
       const val1 = Number(s1.state.replace(",", ".")) || 0;
       const frac = this._clamp(val1 / (Number(c.max_value) || 100), 0, 1);
       
-      // Trend logica met gekleurde driehoek
+      // Trend logica met gekleurde driehoek (Stijging = Groen, Daling = Rood)
       if (c.show_trend && this._lastValue !== null) {
         const diff = val1 - this._lastValue;
         const threshold = val1 * 0.005; // 0.5% buffer
         if (Math.abs(diff) > threshold) {
            this._elements.trend.textContent = diff > 0 ? "▲" : "▼";
-           this._elements.trend.style.fill = diff > 0 ? "#ff4444" : "#00ff00";
+           this._elements.trend.style.fill = diff > 0 ? "#00ff00" : "#ff4444";
         }
       } else {
         this._elements.trend.textContent = "";
