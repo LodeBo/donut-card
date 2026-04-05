@@ -1,13 +1,13 @@
 /*!
- * 🟢 Donut Card v18.0.0 (The Final Polish)
- * - Tweaked: Min/Max waarden verder naar de uiterste hoeken verplaatst.
- * - Tweaked: Pijlen in de hoeken extra dik en iets groter gemaakt (28px).
- * - Tweaked: Trend-pijl in het midden iets groter en dikker gemaakt (22px).
+ * 🟢 Donut Card v19.0.0 (The Symmetry Update)
+ * - Fix: Asymmetrische tekst-pijlen vervangen door perfect symmetrische geometrische driehoeken (▼ / ▲).
+ * - Fix: Trend-indicator in het midden gebruikt nu ook de strakke driehoekjes.
+ * - Tweaked: Driehoeken in de hoeken groot gehouden (28px) mét behoud van de dynamische ring-kleuren.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "18.0.0";
+  const VERSION = "19.0.0";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -159,11 +159,12 @@
       const val1 = Number(s1.state.replace(",", ".")) || 0;
       const frac = this._clamp(val1 / (Number(c.max_value) || 100), 0, 1);
       
+      // Nu met driehoekjes voor de trend pijl
       if (c.show_trend && this._lastValue !== null) {
         const diff = val1 - this._lastValue;
         const threshold = val1 * 0.005; 
         if (Math.abs(diff) > threshold) {
-           this._elements.trend.textContent = diff > 0 ? "↑" : "↓";
+           this._elements.trend.textContent = diff > 0 ? "▲" : "▼";
            this._elements.trend.style.fill = diff > 0 ? "#00ff00" : "#ff4444";
         }
       } else {
@@ -191,9 +192,9 @@
       const cMin = c.start_color || "#0000ff";
       const cMax = c.color_5 || "#ff0000";
 
-      // Pijlen groter (28px) en font-weight op 900
-      this._elements.min.innerHTML = minV !== null ? `<tspan fill="${cMin}" style="font-weight: 900; font-size: 28px;">↓</tspan> ${minV}` : "";
-      this._elements.max.innerHTML = maxV !== null ? `<tspan fill="${cMax}" style="font-weight: 900; font-size: 28px;">↑</tspan> ${maxV}` : "";
+      // Grote (28px) driehoekjes met behoud van kleur!
+      this._elements.min.innerHTML = minV !== null ? `<tspan fill="${cMin}" style="font-size: 28px;">▼</tspan> ${minV}` : "";
+      this._elements.max.innerHTML = maxV !== null ? `<tspan fill="${cMax}" style="font-size: 28px;">▲</tspan> ${maxV}` : "";
 
       this._elements.mask.style.strokeDashoffset = this._circumference - (frac * this._circumference);
       this._elements.start.style.opacity = frac <= 0.001 ? "0" : "1";
@@ -230,7 +231,7 @@
         { name: "max_value", label: "Ring Maximaal", selector: { number: { mode: "box" } } },
         { name: "entity_primary", label: "Hoofd Entiteit", selector: { entity: {} } },
         { type: "grid", name: "", schema: [{ name: "unit_primary", label: "Eenheid", selector: { text: {} } }, { name: "decimals_primary", label: "Decimalen", selector: { number: { mode: "box" } } }] },
-        { name: "show_trend", label: "Toon Trend Pijl (↑/↓)", selector: { boolean: {} } },
+        { name: "show_trend", label: "Toon Trend Pijl (▲/▼)", selector: { boolean: {} } },
         { name: "entity_secondary", label: "Sub Entiteit (Optioneel)", selector: { entity: {} } },
         { type: "grid", name: "", schema: [{ name: "unit_secondary", label: "Eenheid", selector: { text: {} } }, { name: "decimals_secondary", label: "Decimalen", selector: { number: { mode: "box" } } }] },
         { name: "entity_min", label: "Min Entiteit (Linksonder)", selector: { entity: {} } },
