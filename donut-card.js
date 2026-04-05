@@ -1,8 +1,8 @@
 /*!
- * 🟢 Donut Card v15.0.0 (The Professional Edition)
- * - Toegevoegd: Optionele Min/Max entiteiten in de hoeken (↓ / ↑).
- * - Toegevoegd: Trend-indicator (pijltje) naast de hoofdwaarde.
- * - Optimalisatie: Buffer op trend-pijl tegen 'jitter'.
+ * 🟢 Donut Card v15.1.0 (The Dashboard Tweaks)
+ * - Fix: Min/Max entiteit-kiezers in de editor staan nu breed onder elkaar.
+ * - Fix: Tekstgrootte in de hoeken vergroot voor betere leesbaarheid.
+ * - Nieuw: De hoek-pijltjes (↓ / ↑) kleuren dynamisch mee met de start- en eindkleur van de ring.
  */
 
 (() => {
@@ -15,7 +15,7 @@
       this._hass = null;
       this._config = null;
       this._elements = {};
-      this._lastValue = null; // Voor trend-berekening
+      this._lastValue = null; 
     }
 
     static getConfigElement() { return document.createElement("donut-card-editor"); }
@@ -106,7 +106,7 @@
           .wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
           svg { width: 100%; height: 100%; aspect-ratio: 1 / 1; display: block; max-width: 100%; overflow: visible; }
           text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: #ffffff; }
-          .corner { font-size: 14px; fill: rgba(255,255,255,0.6); font-weight: 400; }
+          .corner { font-size: 20px; fill: rgba(255,255,255,0.85); font-weight: 400; }
           #mask-circle { transition: stroke-dashoffset 0.5s ease-out; }
         </style>
         <ha-card>
@@ -131,8 +131,8 @@
               <text id="trend" x="${cx + 50}" y="${cy - 4}" font-size="18" text-anchor="start" font-weight="600"></text>
               <text id="val2" x="${cx}" y="${cy + 24}" font-size="24" text-anchor="middle" font-weight="300"></text>
               
-              <text id="min-val" x="10" y="250" class="corner" text-anchor="start"></text>
-              <text id="max-val" x="250" y="250" class="corner" text-anchor="end"></text>
+              <text id="min-val" x="12" y="245" class="corner" text-anchor="start"></text>
+              <text id="max-val" x="248" y="245" class="corner" text-anchor="end"></text>
             </svg>
           </div>
         </ha-card>
@@ -158,10 +158,9 @@
       const val1 = Number(s1.state.replace(",", ".")) || 0;
       const frac = this._clamp(val1 / (Number(c.max_value) || 100), 0, 1);
       
-      // Trend logica
       if (c.show_trend && this._lastValue !== null) {
         const diff = val1 - this._lastValue;
-        const threshold = val1 * 0.005; // 0.5% buffer
+        const threshold = val1 * 0.005; 
         if (Math.abs(diff) > threshold) {
            this._elements.trend.textContent = diff > 0 ? "↑" : "↓";
            this._elements.trend.style.fill = diff > 0 ? "#00ff00" : "#ff4444";
@@ -173,7 +172,6 @@
 
       this._elements.v1.textContent = `${val1.toFixed(c.decimals_primary)} ${c.unit_primary || ""}`;
       
-      // Subwaarde
       if (c.entity_secondary && h.states[c.entity_secondary]) {
         const val2 = Number(h.states[c.entity_secondary].state.replace(",", ".")) || 0;
         this._elements.v2.textContent = `${val2.toFixed(c.decimals_secondary)} ${c.unit_secondary || ""}`;
@@ -185,12 +183,15 @@
         this._elements.trend.setAttribute("y", "138");
       }
 
-      // Min / Max hoeken
       const getVal = (id) => h.states[id] ? Number(h.states[id].state.replace(",",".")) : null;
       const minV = getVal(c.entity_min);
       const maxV = getVal(c.entity_max);
-      this._elements.min.textContent = minV !== null ? `↓ ${minV}` : "";
-      this._elements.max.textContent = maxV !== null ? `↑ ${maxV}` : "";
+      
+      const cMin = c.start_color || "#0000ff";
+      const cMax = c.color_5 || "#ff0000";
+
+      this._elements.min.innerHTML = minV !== null ? `<tspan fill="${cMin}" font-weight="600">↓</tspan> ${minV}` : "";
+      this._elements.max.innerHTML = maxV !== null ? `<tspan fill="${cMax}" font-weight="600">↑</tspan> ${maxV}` : "";
 
       this._elements.mask.style.strokeDashoffset = this._circumference - (frac * this._circumference);
       this._elements.start.style.opacity = frac <= 0.001 ? "0" : "1";
@@ -229,7 +230,9 @@
         { type: "grid", name: "", schema: [{ name: "unit_primary", label: "Eenheid", selector: { text: {} } }, { name: "decimals_primary", label: "Decimalen", selector: { number: { mode: "box" } } }] },
         { name: "show_trend", label: "Toon Trend Pijl (↑/↓)", selector: { boolean: {} } },
         { name: "entity_secondary", label: "Sub Entiteit (Optioneel)", selector: { entity: {} } },
-        { type: "grid", name: "", schema: [{ name: "entity_min", label: "Min Entiteit (Hoek L)", selector: { entity: {} } }, { name: "entity_max", label: "Max Entiteit (Hoek R)", selector: { entity: {} } }] }
+        { type: "grid", name: "", schema: [{ name: "unit_secondary", label: "Eenheid", selector: { text: {} } }, { name: "decimals_secondary", label: "Decimalen", selector: { number: { mode: "box" } } }] },
+        { name: "entity_min", label: "Min Entiteit (Linksonder)", selector: { entity: {} } },
+        { name: "entity_max", label: "Max Entiteit (Rechtsonder)", selector: { entity: {} } }
       ];
       f.computeLabel = s => s.label;
       f.data = this._config;
@@ -250,27 +253,4 @@
         </style>
         <div class="cp-panel">
           <strong>Kleurenverloop</strong>
-          <div class="cp-row" style="margin-top:10px;"><input type="color" class="cp-color" data-key="start_color"><span class="cp-label">Start (0%)</span></div>
-          ${[2,3,4,5].map(i => `<div class="cp-row"><input type="range" style="flex:1" data-key="stop_${i}" min="1" max="100"><input type="color" class="cp-color" data-key="color_${i}"><span id="perc_${i}" class="cp-label">0%</span></div>`).join('')}
-        </div>`;
-
-      cp.querySelectorAll('input').forEach(el => el.addEventListener('input', e => {
-        const k = e.target.dataset.key;
-        const v = e.target.type === 'range' ? e.target.value / 100 : e.target.value;
-        this._config = { ...this._config, [k]: v };
-        this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
-      }));
-
-      wrapper.append(f, cp);
-      this.shadowRoot.append(wrapper);
-      this._f = f;
-      this._updateUI();
-    }
-  }
-
-  customElements.define("donut-card-editor", DonutCardEditor);
-  customElements.define(TAG, DonutCard);
-
-  window.customCards = window.customCards || [];
-  window.customCards.push({ type: "donut-card", name: "Donut Card Pro", preview: true });
-})();
+          <div class="cp-row" style="margin-top:
