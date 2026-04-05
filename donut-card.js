@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Card v15.1.0 (The Dashboard Tweaks)
+ * 🟢 Donut Card v16.0.0 (The Dashboard Tweaks)
  * - Fix: Min/Max entiteit-kiezers in de editor staan nu breed onder elkaar.
  * - Fix: Tekstgrootte in de hoeken vergroot voor betere leesbaarheid.
  * - Nieuw: De hoek-pijltjes (↓ / ↑) kleuren dynamisch mee met de start- en eindkleur van de ring.
@@ -7,6 +7,7 @@
 
 (() => {
   const TAG = "donut-card";
+  const VERSION = "16.0.0"; // Toegevoegd!
 
   class DonutCard extends HTMLElement {
     constructor() {
