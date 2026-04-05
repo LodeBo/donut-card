@@ -1,14 +1,11 @@
 /*!
- * 🟢 Donut Card v25.0.0 (The Final Layout Fix)
- * - Fix 1: 'static' verwijderd bij getGridOptions, blauwe waarschuwing is nu ECHT weg.
- * - Fix 2: Pijltje in de ring naar links verplaatst zodat hij de ring niet raakt.
- * - Fix 3: Waarden en pijlen in de hoeken vergroot naar 20px.
- * - THEMES EN KLEUREN ZIJN 100% ONGEWIJZIGD.
+ * 🟢 Donut Card v26.0.0 (The Opacity Fix)
+ * - Fix: Doorzichtigheid (opacity) van de subwaarde (Kwh) verwijderd. Tekst is nu weer 100% helder en niet meer grijs.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "25.0.0";
+  const VERSION = "26.0.0";
 
   console.info(
     `%c 🟢 DONUT-CARD %c v${VERSION} `,
@@ -42,7 +39,6 @@
       };
     }
 
-    // Dit is nu een instantiemethode (zonder 'static'), zodat Home Assistant hem écht herkent!
     getGridOptions() {
       return {
         columns: 4,
@@ -124,10 +120,7 @@
           .wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
           svg { width: 100%; height: 100%; aspect-ratio: 1 / 1; display: block; max-width: 100%; overflow: visible; }
           text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: currentColor; }
-          
-          /* Hoek waarden eindelijk aanzienlijk vergroot */
           .corner { font-size: 20px; font-weight: 500; }
-          
           #mask-circle { transition: stroke-dashoffset 0.5s ease-out; }
         </style>
         <ha-card>
@@ -149,10 +142,9 @@
               
               <text x="${cx}" y="${cy - R - 32}" font-size="30" font-weight="400" text-anchor="middle">${c.top_label_text || ""}</text>
               <text id="val1" x="${cx}" y="${cy - 4}" font-size="24" text-anchor="middle" font-weight="300">--</text>
-              
               <text id="trend" x="${cx + 45}" y="${cy - 4}" font-size="18" text-anchor="start" font-weight="600"></text>
               
-              <text id="val2" x="${cx}" y="${cy + 24}" font-size="22" text-anchor="middle" font-weight="300" opacity="0.6"></text>
+              <text id="val2" x="${cx}" y="${cy + 24}" font-size="22" text-anchor="middle" font-weight="300"></text>
               
               <text id="min-val" x="10" y="245" class="corner" text-anchor="start"></text>
               <text id="max-val" x="250" y="245" class="corner" text-anchor="end"></text>
@@ -181,10 +173,9 @@
       const val1 = Number(s1.state.replace(",", ".")) || 0;
       const frac = this._clamp(val1 / (Number(c.max_value) || 100), 0, 1);
       
-      // Jouw logica: Stijging = Rood, Daling = Groen
       if (c.show_trend && this._lastValue !== null) {
         const diff = val1 - this._lastValue;
-        const threshold = val1 * 0.005; // 0.5% buffer
+        const threshold = val1 * 0.005;
         if (Math.abs(diff) > threshold) {
            this._elements.trend.textContent = diff > 0 ? "▲" : "▼";
            this._elements.trend.style.fill = diff > 0 ? "#ff4444" : "#00ff00";
@@ -196,7 +187,6 @@
 
       this._elements.v1.textContent = `${val1.toFixed(c.decimals_primary)} ${c.unit_primary || ""}`;
       
-      // Subwaarde
       if (c.entity_secondary && h.states[c.entity_secondary]) {
         const val2 = Number(h.states[c.entity_secondary].state.replace(",", ".")) || 0;
         this._elements.v2.textContent = `${val2.toFixed(c.decimals_secondary)} ${c.unit_secondary || ""}`;
@@ -208,7 +198,6 @@
         this._elements.trend.setAttribute("y", "138");
       }
 
-      // Jouw logica voor de Min / Max hoeken
       const getVal = (id) => h.states[id] ? Number(h.states[id].state.replace(",",".")) : null;
       const minV = getVal(c.entity_min);
       const maxV = getVal(c.entity_max);
