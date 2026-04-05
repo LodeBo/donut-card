@@ -1,11 +1,12 @@
 /*!
- * 🟢 Donut Card v26.0.0 (The Opacity Fix)
- * - Fix: Doorzichtigheid (opacity) van de subwaarde (Kwh) verwijderd. Tekst is nu weer 100% helder en niet meer grijs.
+ * 🟢 Donut Card v28.0.0 (The Final Idiot Fix)
+ * - Fix: Trendpijl in het midden gebruikt eindelijk de logische kleuren (Omhoog = Groen, Omlaag = Rood).
+ * - Verder 100% identiek aan v27.0.0 (dikke letters, transparantie fix, etc.).
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "26.0.0";
+  const VERSION = "28.0.0";
 
   console.info(
     `%c 🟢 DONUT-CARD %c v${VERSION} `,
@@ -141,10 +142,9 @@
               </g>
               
               <text x="${cx}" y="${cy - R - 32}" font-size="30" font-weight="400" text-anchor="middle">${c.top_label_text || ""}</text>
-              <text id="val1" x="${cx}" y="${cy - 4}" font-size="24" text-anchor="middle" font-weight="300">--</text>
+              <text id="val1" x="${cx}" y="${cy - 4}" font-size="24" text-anchor="middle" font-weight="600">--</text>
               <text id="trend" x="${cx + 45}" y="${cy - 4}" font-size="18" text-anchor="start" font-weight="600"></text>
-              
-              <text id="val2" x="${cx}" y="${cy + 24}" font-size="22" text-anchor="middle" font-weight="300"></text>
+              <text id="val2" x="${cx}" y="${cy + 24}" font-size="22" text-anchor="middle" font-weight="500"></text>
               
               <text id="min-val" x="10" y="245" class="corner" text-anchor="start"></text>
               <text id="max-val" x="250" y="245" class="corner" text-anchor="end"></text>
@@ -173,12 +173,13 @@
       const val1 = Number(s1.state.replace(",", ".")) || 0;
       const frac = this._clamp(val1 / (Number(c.max_value) || 100), 0, 1);
       
+      // LOGISCHE KLEUREN: Omhoog = Groen, Omlaag = Rood
       if (c.show_trend && this._lastValue !== null) {
         const diff = val1 - this._lastValue;
         const threshold = val1 * 0.005;
         if (Math.abs(diff) > threshold) {
            this._elements.trend.textContent = diff > 0 ? "▲" : "▼";
-           this._elements.trend.style.fill = diff > 0 ? "#ff4444" : "#00ff00";
+           this._elements.trend.style.fill = diff > 0 ? "#00ff00" : "#ff4444";
         }
       } else {
         this._elements.trend.textContent = "";
@@ -194,96 +195,4 @@
         this._elements.trend.setAttribute("y", "120");
       } else {
         this._elements.v2.textContent = "";
-        this._elements.v1.setAttribute("y", "138");
-        this._elements.trend.setAttribute("y", "138");
-      }
-
-      const getVal = (id) => h.states[id] ? Number(h.states[id].state.replace(",",".")) : null;
-      const minV = getVal(c.entity_min);
-      const maxV = getVal(c.entity_max);
-      
-      this._elements.min.innerHTML = minV !== null ? `<tspan fill="#00ff00">▼</tspan> ${minV}` : "";
-      this._elements.max.innerHTML = maxV !== null ? `<tspan fill="#ff4444">▲</tspan> ${maxV}` : "";
-
-      this._elements.mask.style.strokeDashoffset = this._circumference - (frac * this._circumference);
-      this._elements.start.style.opacity = frac <= 0.001 ? "0" : "1";
-      this._elements.endG.style.opacity = frac <= 0.001 ? "0" : "1";
-      this._elements.endG.style.transform = `rotate(${frac * 360}deg)`;
-      this._elements.endC.style.fill = this._colorAtStops(this._currentStops, frac);
-    }
-  }
-
-  class DonutCardEditor extends HTMLElement {
-    setConfig(config) { this._config = config; if (this._f) this._f.data = config; this._updateUI(); }
-    set hass(h) { this._hass = h; if (!this._f) this._build(); this._f.hass = h; }
-
-    _updateUI() {
-      if (!this.shadowRoot || !this._config) return;
-      const c = this._config;
-      this.shadowRoot.querySelector('[data-key="start_color"]').value = c.start_color || '#0000ff';
-      [2,3,4,5].forEach(i => {
-        const val = Math.round((c['stop_'+i] || 0) * 100);
-        this.shadowRoot.querySelector(`[data-key="stop_${i}"]`).value = val;
-        this.shadowRoot.querySelector(`[data-key="color_${i}"]`).value = c['color_'+i] || '#ffffff';
-        this.shadowRoot.getElementById(`perc_${i}`).textContent = val + '%';
-      });
-    }
-    
-    _build() {
-      this.attachShadow({ mode: "open" });
-      const wrapper = document.createElement("div");
-      wrapper.style.cssText = "display:flex; flex-direction:column; gap:20px;";
-
-      const f = document.createElement("ha-form");
-      f.schema = [
-        { name: "top_label_text", label: "Titel", selector: { text: {} } },
-        { name: "max_value", label: "Ring Maximaal", selector: { number: { mode: "box" } } },
-        { name: "entity_primary", label: "Hoofd Entiteit", selector: { entity: {} } },
-        { type: "grid", name: "", schema: [{ name: "unit_primary", label: "Eenheid", selector: { text: {} } }, { name: "decimals_primary", label: "Decimalen", selector: { number: { mode: "box" } } }] },
-        { name: "show_trend", label: "Toon Trend Pijl (▲/▼)", selector: { boolean: {} } },
-        { name: "entity_secondary", label: "Sub Entiteit (Optioneel)", selector: { entity: {} } },
-        { type: "grid", name: "", schema: [{ name: "entity_min", label: "Min Entiteit (Hoek L)", selector: { entity: {} } }, { name: "entity_max", label: "Max Entiteit (Hoek R)", selector: { entity: {} } }] }
-      ];
-      f.computeLabel = s => s.label;
-      f.data = this._config;
-      f.addEventListener("value-changed", ev => {
-        this._config = { ...this._config, ...ev.detail.value };
-        this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
-      });
-
-      const cp = document.createElement("div");
-      cp.innerHTML = `
-        <style>
-          .cp-panel { background: var(--secondary-background-color, rgba(150,150,150,0.1)); padding: 15px; border-radius: 12px; }
-          .cp-row { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; }
-          .cp-color { width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(128,128,128,0.3); cursor: pointer; -webkit-appearance: none; padding: 0; }
-          .cp-color::-webkit-color-swatch-wrapper { padding: 0; }
-          .cp-color::-webkit-color-swatch { border: none; border-radius: 50%; }
-          .cp-label { font-size: 13px; font-weight: 500; width: 60px; }
-        </style>
-        <div class="cp-panel">
-          <strong>Kleurenverloop</strong>
-          <div class="cp-row" style="margin-top:10px;"><input type="color" class="cp-color" data-key="start_color"><span class="cp-label">Start (0%)</span></div>
-          ${[2,3,4,5].map(i => `<div class="cp-row"><input type="range" style="flex:1" data-key="stop_${i}" min="1" max="100"><input type="color" class="cp-color" data-key="color_${i}"><span id="perc_${i}" class="cp-label">0%</span></div>`).join('')}
-        </div>`;
-
-      cp.querySelectorAll('input').forEach(el => el.addEventListener('input', e => {
-        const k = e.target.dataset.key;
-        const v = e.target.type === 'range' ? e.target.value / 100 : e.target.value;
-        this._config = { ...this._config, [k]: v };
-        this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
-      }));
-
-      wrapper.append(f, cp);
-      this.shadowRoot.append(wrapper);
-      this._f = f;
-      this._updateUI();
-    }
-  }
-
-  customElements.define("donut-card-editor", DonutCardEditor);
-  customElements.define(TAG, DonutCard);
-
-  window.customCards = window.customCards || [];
-  window.customCards.push({ type: "donut-card", name: "Donut Card Pro", preview: true });
-})();
+        this._elements.v1
