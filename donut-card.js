@@ -1,12 +1,12 @@
 /*!
- * 🟢 Donut Card v29.0.0 (The Final Idiot Fix)
- * - Fix: Trendpijl in het midden gebruikt eindelijk de logische kleuren (Omhoog = Groen, Omlaag = Rood).
- * - Verder 100% identiek aan v27.0.0 (dikke letters, transparantie fix, etc.).
+ * 🟢 Donut Card v30.0.0 (The Dynamic Corner Colors)
+ * - Fix: De pijltjes in de hoeken (Min/Max) gebruiken nu de ingestelde kleuren van de ring (start_color en color_5) in plaats van hardcoded kleuren.
+ * - Verder 100% identiek aan v28.0.0.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "29.0.0";
+  const VERSION = "30.0.0";
 
   console.info(
     `%c 🟢 DONUT-CARD %c v${VERSION} `,
@@ -173,7 +173,6 @@
       const val1 = Number(s1.state.replace(",", ".")) || 0;
       const frac = this._clamp(val1 / (Number(c.max_value) || 100), 0, 1);
       
-      // LOGISCHE KLEUREN: Omhoog = Groen, Omlaag = Rood
       if (c.show_trend && this._lastValue !== null) {
         const diff = val1 - this._lastValue;
         const threshold = val1 * 0.005;
@@ -199,12 +198,17 @@
         this._elements.trend.setAttribute("y", "138");
       }
 
+      // Min / Max waarden ophalen
       const getVal = (id) => h.states[id] ? Number(h.states[id].state.replace(",",".")) : null;
       const minV = getVal(c.entity_min);
       const maxV = getVal(c.entity_max);
       
-      this._elements.min.innerHTML = minV !== null ? `<tspan fill="#00ff00">▼</tspan> ${minV}` : "";
-      this._elements.max.innerHTML = maxV !== null ? `<tspan fill="#ff4444">▲</tspan> ${maxV}` : "";
+      // Dynamische kleuren ophalen uit de config
+      const minColor = c.start_color || "#0000ff";
+      const maxColor = c.color_5 || "#ff0000";
+      
+      this._elements.min.innerHTML = minV !== null ? `<tspan fill="${minColor}">▼</tspan> ${minV}` : "";
+      this._elements.max.innerHTML = maxV !== null ? `<tspan fill="${maxColor}">▲</tspan> ${maxV}` : "";
 
       this._elements.mask.style.strokeDashoffset = this._circumference - (frac * this._circumference);
       this._elements.start.style.opacity = frac <= 0.001 ? "0" : "1";
