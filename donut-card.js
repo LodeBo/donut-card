@@ -1,13 +1,12 @@
 /*!
- * 🟢 Donut Card v16.0.0 (The Dashboard Tweaks)
- * - Fix: Min/Max entiteit-kiezers in de editor staan nu breed onder elkaar.
- * - Fix: Tekstgrootte in de hoeken vergroot voor betere leesbaarheid.
- * - Nieuw: De hoek-pijltjes (↓ / ↑) kleuren dynamisch mee met de start- en eindkleur van de ring.
+ * 🟢 Donut Card v15.2.0 (The Readability Update)
+ * - Fix: Tekst in de hoeken (min/max) aanzienlijk vergroot (24px).
+ * - Fix: Pijltjes in de hoeken extra dik (bold/900) en prominent gemaakt.
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "16.0.0"; // Toegevoegd!
+  const VERSION = "17.0.0";
 
   class DonutCard extends HTMLElement {
     constructor() {
@@ -107,7 +106,8 @@
           .wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
           svg { width: 100%; height: 100%; aspect-ratio: 1 / 1; display: block; max-width: 100%; overflow: visible; }
           text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: #ffffff; }
-          .corner { font-size: 20px; fill: rgba(255,255,255,0.85); font-weight: 400; }
+          /* Corner class aangepast voor grotere en fellere tekst */
+          .corner { font-size: 24px; fill: rgba(255,255,255,0.95); font-weight: 500; }
           #mask-circle { transition: stroke-dashoffset 0.5s ease-out; }
         </style>
         <ha-card>
@@ -129,7 +129,7 @@
               
               <text x="${cx}" y="${cy - R - 32}" font-size="34" font-weight="300" text-anchor="middle">${c.top_label_text || ""}</text>
               <text id="val1" x="${cx}" y="${cy - 4}" font-size="24" text-anchor="middle" font-weight="300">--</text>
-              <text id="trend" x="${cx + 50}" y="${cy - 4}" font-size="18" text-anchor="start" font-weight="600"></text>
+              <text id="trend" x="${cx + 50}" y="${cy - 4}" font-size="20" text-anchor="start" font-weight="800"></text>
               <text id="val2" x="${cx}" y="${cy + 24}" font-size="24" text-anchor="middle" font-weight="300"></text>
               
               <text id="min-val" x="12" y="245" class="corner" text-anchor="start"></text>
@@ -191,8 +191,9 @@
       const cMin = c.start_color || "#0000ff";
       const cMax = c.color_5 || "#ff0000";
 
-      this._elements.min.innerHTML = minV !== null ? `<tspan fill="${cMin}" font-weight="600">↓</tspan> ${minV}` : "";
-      this._elements.max.innerHTML = maxV !== null ? `<tspan fill="${cMax}" font-weight="600">↑</tspan> ${maxV}` : "";
+      // Pijlen extra dik en iets groter gemaakt met style="font-weight: 900; font-size: 26px;"
+      this._elements.min.innerHTML = minV !== null ? `<tspan fill="${cMin}" style="font-weight: 900; font-size: 26px;">↓</tspan> ${minV}` : "";
+      this._elements.max.innerHTML = maxV !== null ? `<tspan fill="${cMax}" style="font-weight: 900; font-size: 26px;">↑</tspan> ${maxV}` : "";
 
       this._elements.mask.style.strokeDashoffset = this._circumference - (frac * this._circumference);
       this._elements.start.style.opacity = frac <= 0.001 ? "0" : "1";
