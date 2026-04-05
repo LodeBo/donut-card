@@ -253,4 +253,29 @@
         </style>
         <div class="cp-panel">
           <strong>Kleurenverloop</strong>
-          <div class="cp-row" style="margin-top:
+          <div class="cp-row" style="margin-top:10px;"><input type="color" class="cp-color" data-key="start_color"><span class="cp-label">Start (0%)</span></div>
+          ${[2,3,4,5].map(i => `<div class="cp-row"><input type="range" style="flex:1" data-key="stop_${i}" min="1" max="100"><input type="color" class="cp-color" data-key="color_${i}"><span id="perc_${i}" class="cp-label">0%</span></div>`).join('')}
+        </div>`;
+
+      cp.querySelectorAll('input').forEach(el => el.addEventListener('input', e => {
+        const k = e.target.dataset.key;
+        const v = e.target.type === 'range' ? e.target.value / 100 : e.target.value;
+        this._config = { ...this._config, [k]: v };
+        this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
+      }));
+
+      wrapper.append(f, cp);
+      this.shadowRoot.append(wrapper);
+      this._f = f;
+      this._updateUI();
+    }
+  }
+
+  customElements.define("donut-card-editor", DonutCardEditor);
+  customElements.define(TAG, DonutCard);
+
+  window.customCards = window.customCards || [];
+  if (!window.customCards.some(c => c.type === "donut-card")) {
+    window.customCards.push({ type: "donut-card", name: "Donut Card Pro", preview: true });
+  }
+})();
