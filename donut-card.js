@@ -1,15 +1,13 @@
 /*!
- * 🟢 Donut Card v34.0.0 (The Radar Update)
- * - Nieuw: Radar scanner animatie als de waarde op 0 staat.
- * - Nieuw: Schakelaar in de UI ('Toon Radar Animatie (bij 0)') om dit aan/uit te zetten.
- * - Fix: Entiteitpickers in de editor staan weer gewoon onder elkaar (geen grid meer).
- * - Fix: Volledige breedte voor alle selectievelden voor maximale leesbaarheid.
- * - VERDER 100% IDENTIEK AAN v32.0.0 (kleuren, pijlen en dikke tekst zijn behouden).
+ * 🟢 Donut Card v35.0.0 (The Offline Update)
+ * - Nieuw: Als de sensor "unavailable" of "unknown" is, toont de kaart "Offline" (gedimd).
+ * - Fix: Bij een offline sensor wordt de radar-animatie geforceerd stopgezet.
+ * - VERDER 100% IDENTIEK AAN v34.0.0 (alles blijft exact staan zoals het stond).
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "34.0.0";
+  const VERSION = "35.0.0";
 
   console.info(
     `%c 🟢 DONUT-CARD %c v${VERSION} `,
@@ -118,7 +116,7 @@
           ha-card { display:flex; align-items:center; justify-content:center; width:100%; height:100%; box-sizing: border-box; padding: 12px; overflow: hidden; color: var(--primary-text-color, currentColor); }
           .wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
           svg { width: 100%; height: 100%; aspect-ratio: 1 / 1; display: block; max-width: 100%; overflow: visible; }
-          text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: currentColor; }
+          text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: currentColor; transition: opacity 0.3s ease; }
           .corner { font-size: 25px; font-weight: 600; }
           #mask-circle { transition: stroke-dashoffset 0.5s ease-out; }
           @keyframes radar { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -170,10 +168,13 @@
     _updateValues() {
       const h = this._hass; const c = this._config; if (!h || !c.entity_primary || !this._elements.mask) return;
       const s1 = h.states[c.entity_primary]; if (!s1) return;
-      const val1 = Number(s1.state.replace(",", ".")) || 0;
+      
+      // Offline Check Toevoeging
+      const isOffline = s1.state === "unavailable" || s1.state === "unknown";
+      const val1 = isOffline ? 0 : (Number(s1.state.replace(",", ".")) || 0);
       const frac = this._clamp(val1 / (Number(c.max_value) || 100), 0, 1);
       
-      if (c.show_trend && this._lastValue !== null) {
+      if (c.show_trend && !isOffline && this._lastValue !== null) {
         const diff = val1 - this._lastValue;
         const threshold = val1 * 0.005;
         if (Math.abs(diff) > threshold) {
@@ -181,9 +182,16 @@
            this._elements.trend.style.fill = diff > 0 ? "#00ff00" : "#ff4444";
         }
       } else { this._elements.trend.textContent = ""; }
-      this._lastValue = val1;
+      this._lastValue = isOffline ? null : val1;
 
-      this._elements.v1.textContent = `${val1.toFixed(c.decimals_primary)} ${c.unit_primary || ""}`;
+      // Offline Tekst Logica
+      if (isOffline) {
+        this._elements.v1.textContent = "Offline";
+        this._elements.v1.style.opacity = "0.4";
+      } else {
+        this._elements.v1.textContent = `${val1.toFixed(c.decimals_primary)} ${c.unit_primary || ""}`;
+        this._elements.v1.style.opacity = "1";
+      }
       
       if (c.entity_secondary && h.states[c.entity_secondary]) {
         const val2 = Number(h.states[c.entity_secondary].state.replace(",", ".")) || 0;
@@ -211,8 +219,8 @@
       this._elements.endG.style.transform = `rotate(${frac * 360}deg)`;
       this._elements.endC.style.fill = this._colorAtStops(this._currentStops, frac);
 
-      // Radar Logica
-      if (c.show_radar !== false && frac <= 0.001) {
+      // Radar Logica (aangepast voor offline check)
+      if (!isOffline && c.show_radar !== false && frac <= 0.001) {
         this._elements.radar.classList.add("scanning");
       } else {
         this._elements.radar.classList.remove("scanning");
