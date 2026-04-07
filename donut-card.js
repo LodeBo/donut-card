@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Card v33.0.0 (The Radar Update)
+ * 🟢 Donut Card v34.0.0 (The Radar Update)
  * - Nieuw: Radar scanner animatie als de waarde op 0 staat.
  * - Nieuw: Schakelaar in de UI ('Toon Radar Animatie (bij 0)') om dit aan/uit te zetten.
  * - Fix: Entiteitpickers in de editor staan weer gewoon onder elkaar (geen grid meer).
@@ -9,7 +9,7 @@
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "33.0.0";
+  const VERSION = "34.0.0";
 
   console.info(
     `%c 🟢 DONUT-CARD %c v${VERSION} `,
