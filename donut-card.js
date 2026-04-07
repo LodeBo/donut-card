@@ -123,7 +123,7 @@
           #mask-circle { transition: stroke-dashoffset 0.5s ease-out; }
           @keyframes radar { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
           #radar { transform-origin: ${cx}px ${cy}px; opacity: 0; transition: opacity 0.5s ease; }
-          #radar.scanning { opacity: 1; animation: radar 3s linear infinite; }
+          #radar.scanning { opacity: 1; animation: radar 8s linear infinite; }
         </style>
         <ha-card>
           <div class="wrap">
