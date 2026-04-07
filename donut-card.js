@@ -1,13 +1,15 @@
 /*!
- * 🟢 Donut Card v32.0.0 (The Editor Layout Fix)
+ * 🟢 Donut Card v33.0.0 (The Radar Update)
+ * - Nieuw: Radar scanner animatie als de waarde op 0 staat.
+ * - Nieuw: Schakelaar in de UI ('Toon Radar Animatie (bij 0)') om dit aan/uit te zetten.
  * - Fix: Entiteitpickers in de editor staan weer gewoon onder elkaar (geen grid meer).
  * - Fix: Volledige breedte voor alle selectievelden voor maximale leesbaarheid.
- * - VERDER 100% IDENTIEK AAN v29.0.0 (kleuren, pijlen en dikke tekst zijn behouden).
+ * - VERDER 100% IDENTIEK AAN v32.0.0 (kleuren, pijlen en dikke tekst zijn behouden).
  */
 
 (() => {
   const TAG = "donut-card";
-  const VERSION = "32.0.0";
+  const VERSION = "33.0.0";
 
   console.info(
     `%c 🟢 DONUT-CARD %c v${VERSION} `,
@@ -36,6 +38,7 @@
         unit_primary: "W",
         decimals_primary: 0,
         show_trend: true,
+        show_radar: true,
         start_color: "#00ff00",
         stop_5: 0.9, color_5: "#ff0000"
       };
@@ -118,6 +121,9 @@
           text { user-select: none; font-family: Inter, system-ui, sans-serif; fill: currentColor; }
           .corner { font-size: 25px; font-weight: 600; }
           #mask-circle { transition: stroke-dashoffset 0.5s ease-out; }
+          @keyframes radar { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+          #radar { transform-origin: ${cx}px ${cy}px; opacity: 0; transition: opacity 0.5s ease; }
+          #radar.scanning { opacity: 1; animation: radar 3s linear infinite; }
         </style>
         <ha-card>
           <div class="wrap">
@@ -132,6 +138,7 @@
               <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="rgba(150, 150, 150, 0.15)" stroke-width="${W}" />
               <g mask="url(#m)">${gradientPaths}</g>
               <circle id="start-cap" cx="${cx}" cy="${cy - R}" r="${W / 2}" fill="${stops[0][1]}" />
+              <circle id="radar" cx="${cx}" cy="${cy - R}" r="5" fill="currentColor" />
               <g id="end-cap-group" style="transform-origin: ${cx}px ${cy}px; transition: transform 0.5s ease-out;">
                 <circle id="end-cap" cx="${cx}" cy="${cy - R}" r="${W / 2}" fill="${stops[0][1]}" style="transition: fill 0.5s ease-out;" />
               </g>
@@ -147,6 +154,7 @@
       `;
 
       this._elements = {
+        radar: this.shadowRoot.getElementById("radar"),
         mask: this.shadowRoot.getElementById("mask-circle"),
         start: this.shadowRoot.getElementById("start-cap"),
         endG: this.shadowRoot.getElementById("end-cap-group"),
@@ -202,6 +210,13 @@
       this._elements.endG.style.opacity = frac <= 0.001 ? "0" : "1";
       this._elements.endG.style.transform = `rotate(${frac * 360}deg)`;
       this._elements.endC.style.fill = this._colorAtStops(this._currentStops, frac);
+
+      // Radar Logica
+      if (c.show_radar !== false && frac <= 0.001) {
+        this._elements.radar.classList.add("scanning");
+      } else {
+        this._elements.radar.classList.remove("scanning");
+      }
     }
   }
 
@@ -227,7 +242,6 @@
       wrapper.style.cssText = "display:flex; flex-direction:column; gap:20px;";
 
       const f = document.createElement("ha-form");
-      // Grid verwijderd: alle entiteiten onder elkaar voor maximale breedte en leesbaarheid
       f.schema = [
         { name: "top_label_text", label: "Titel", selector: { text: {} } },
         { name: "max_value", label: "Ring Maximaal", selector: { number: { mode: "box" } } },
@@ -235,6 +249,7 @@
         { name: "unit_primary", label: "Eenheid", selector: { text: {} } },
         { name: "decimals_primary", label: "Decimalen", selector: { number: { mode: "box" } } },
         { name: "show_trend", label: "Toon Trend Pijl (▲/▼)", selector: { boolean: {} } },
+        { name: "show_radar", label: "Toon Radar Animatie (bij 0)", selector: { boolean: {} } },
         { name: "entity_secondary", label: "Sub Entiteit (Optioneel)", selector: { entity: {} } },
         { name: "entity_min", label: "Min Entiteit (Hoek L)", selector: { entity: {} } },
         { name: "entity_max", label: "Max Entiteit (Hoek R)", selector: { entity: {} } }
